@@ -40,11 +40,36 @@ Ainda não tem bóia, então o nível de água é controlado **pelo tempo** que 
 
 **O ciclo:** drena o que sobrou, enche, lava com água quente, drena e faz os enxágues. Tudo aparece num dial redondo, no lugar do timer antigo.
 
-**Segurança vem antes de tudo:** porta aberta desliga tudo na hora, a resistência nunca liga sem água, encher e drenar nunca acontecem juntos, e se o Klixon disparar a máquina para e só volta quando você liberar.
+**Segurança vem antes de tudo:**
+- porta aberta desliga tudo na hora;
+- a resistência só liga com água que entrou pelo solenoide e com a água ainda fria. Marcar "com água" na página não basta;
+- encher e drenar nunca acontecem juntos;
+- se o Klixon disparar, a máquina para e só volta quando você liberar;
+- só a página da própria placa consegue mandar comandos. Um site qualquer aberto no celular não consegue ligar nada.
 
 **A página tem duas abas:**
 - **Principal:** o dia a dia. Mostra o dial, o botão iniciar/parar, os sensores e o tempo que falta.
 - **Debug e admin:** testar cada componente, ajustar os tempos do ciclo, ver as leituras cruas, as informações da placa e o registro de eventos.
+
+## Andamento
+
+Testes de bancada feitos até agora, sem 110 V:
+
+| Teste | Situação |
+|---|---|
+| Sensores: porta, termostato da cuba, Klixon (falha e liberação) | ✅ |
+| Wi-Fi da casa com IP fixo reservado no roteador | ✅ |
+| Módulo de relés alimentado pelo `VIN` (5 V), com o jumper | ✅ |
+| Os 4 relés nos pinos definitivos | ✅ |
+| Resistência bloqueada sem água e com a água quente | ✅ |
+| Porta aberta desliga e bloqueia tudo | ✅ |
+| Página recusa comandos vindos de outros sites | ✅ |
+| Resistência bloqueada com a água só marcada à mão | ⏳ |
+| Encher e drenar nunca juntos | ⏳ |
+| Sensores de verdade na máquina | ⏳ |
+| Testes com 110 V, calibrar o enchimento, ciclo completo | ⏳ |
+
+A ordem dos próximos testes está no [`LIGACAO.md`](LIGACAO.md), item 7.
 
 ## Como gravar
 
@@ -56,6 +81,8 @@ Ainda não tem bóia, então o nível de água é controlado **pelo tempo** que 
    ```
    Se preferir, use a Arduino IDE: abra `LavaLoucas/LavaLoucas.ino`, escolha a placa **ESP32 Dev Module** e grave. Grave com a máquina fora da tomada.
 3. No celular, entre na rede Wi-Fi **LavaLoucas** e abra **http://192.168.4.1**. Se configurou a rede de casa, use o IP que a placa pegou (aparece no registro da página e na serial) ou **http://lavaloucas.local**, que só funciona para quem está na mesma rede da placa. Dica: reserve um IP fixo para a placa no roteador.
+
+**Se a placa reiniciar sozinha** (a página ora responde, ora trava), o problema costuma ser a alimentação: cabo ou porta USB com mau contato. Veja o item 3 do [`LIGACAO.md`](LIGACAO.md).
 
 > ⚠️ **Perigo: 110 V, água e uma resistência de ~1000 W.** Há risco real de choque elétrico e de incêndio.
 > - **Antes de ligar na tomada, leia o [`LIGACAO.md`](LIGACAO.md)**: esquema elétrico, aterramento, proteções físicas e a ordem de testes.
