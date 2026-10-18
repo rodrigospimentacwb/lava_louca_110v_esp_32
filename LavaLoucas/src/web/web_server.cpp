@@ -1,0 +1,244 @@
+// web_server.cpp  -  rotas HTTP. Cada handle...() lê os parâmetros, chama a função
+// do módulo certo (ciclo, relés, água...) e responde em JSON.
+
+#include "web_server.h"
+#include <WebServer.h>
+#include <WiFi.h>
+#include <esp_system.h>
+#include "../../config.h"
+#include "../hardware/relays.h"
+#include "../control/cycle.h"
+#include "../control/safety.h"
+#include "../control/water.h"
+#include "../hardware/inputs.h"
+#include "../storage/settings.h"
+#include "../storage/event_log.h"
+#include "network.h"
+#include "page.h"
+
+static WebServer server(80);
+static uint32_t restartAtMs = 0;  // reinício agendado (dá tempo de responder à página)
+
+// ---------- Ajudantes de JSON ----------
+
+static String jsonBool(bool v) { return v ? "true" : "false"; }
+static String jsonText(const String& s) { return "\"" + s + "\""; }
+
+static void sendJson(const String& json) { server.send(200, "application/json", json); }
+static void sendOk() { sendJson("{\"ok\":true}"); }
+static void sendError(int code, const char* msg) { server.send(code, "application/json", "{\"error\":\"" + String(msg) + "\"}"); }
+
+// ---------- Aba Principal ----------
+
+static String stepLabel() {
+  String label = STEP_NAME[currentStep];
+  if (isRinseStep()) label += " " + String(rinseIndex + 1) + "/" + String(settings.nRinses);
+  return label;
+}
+
+static void handleStatus() {
+  uint32_t now = millis();
+  String j = "{";
+  j += "\"door\":"        + jsonBool(doorClosed());
+  j += ",\"tankHot\":"    + jsonBool(tankHot());
+  j += ",\"klixon\":"     + jsonBool(klixonTripped());
+  j += ",\"fault\":"      + jsonBool(fault);
+  j += ",\"faultMsg\":"   + jsonText(faultMsg);
+  j += ",\"water\":"      + jsonBool(waterPresent);
+  j += ",\"fillS\":"      + String(fillAccumMs / 1000.0, 1);
+  j += ",\"active\":"     + jsonBool(cycleActive());
+  j += ",\"paused\":"     + jsonBool(cyclePaused());
+  j += ",\"stepId\":"     + String((int)currentStep);
+  j += ",\"step\":"       + jsonText(stepLabel());
+  j += ",\"rinse\":"      + String(rinseIndex);
+  j += ",\"heating\":"    + jsonBool(currentStep == STEP_WASH && !washTempReached && !tankHot());
+  j += ",\"stepS\":"      + String(stepElapsedMs / 1000);
+  j += ",\"stepTargetS\":" + String(stepTargetMs() / 1000);
+  j += ",\"nRinses\":"    + String(settings.nRinses);
+  j += ",\"preDrain\":"   + jsonBool(settings.preDrain);
+
+  j += ",\"relays\":[";
+  for (int i = 0; i < RELAY_COUNT; i++) {
+    if (i) j += ",";
+    j += "{\"name\":" + jsonText(RELAY_NAME[i]);
+    j += ",\"on\":"    + jsonBool(relayOn[i]);
+    j += ",\"test\":"  + jsonBool(testOn[i]);
+    j += ",\"testLeftS\":" + String(testRemainingMs(i, now) / 1000);
+    j += ",\"block\":" + jsonText(blockReason[i]) + "}";
+  }
+  j += "]";
+
+  j += ",\"log\":[";
+  for (int k = 0; k < logCount(); k++) j += (k ? "," : "") + jsonText(logLineAt(k));
+  j += "]";
+
+  j += ",\"ip\":"     + jsonText(networkAddresses());
+  j += ",\"uptime\":" + String(now / 1000);
+  j += "}";
+  sendJson(j);
+}
+
+static void handleCycle() {
+  if (server.arg("cmd") == "start") {
+    startCycle();
+  } else {
+    stopCycle("pelo usuario");
+    stopAllTests();
+  }
+  sendOk();
+}
+
+static void handleReset() {
+  resetFault();
+  sendOk();
+}
+
+// ---------- Aba Debug/Admin ----------
+
+static void handleRelay() {
+  int i = server.arg("i").toInt();
+  bool on = server.arg("on").toInt() == 1;
+  if (i < 0 || i >= RELAY_COUNT) return sendError(400, "rele invalido");
+  if (cycleActive())             return sendError(409, "ciclo em andamento");
+
+  if (on) startTest(i);
+  else    stopTest(i);
+  sendOk();
+}
+
+static void handleWater() {
+  setWaterManually(server.arg("v").toInt() == 1);
+  sendOk();
+}
+
+static void handleConfigGet() {
+  String j = "{";
+  j += "\"fillSec\":"     + String(settings.fillSec);
+  j += ",\"drainSec\":"   + String(settings.drainSec);
+  j += ",\"washMin\":"    + String(settings.washMin);
+  j += ",\"heatMaxMin\":" + String(settings.heatMaxMin);
+  j += ",\"rinseMin\":"   + String(settings.rinseMin);
+  j += ",\"nRinses\":"    + String(settings.nRinses);
+  j += ",\"rinseHeat\":"  + jsonBool(settings.rinseHeat);
+  j += ",\"preDrain\":"   + jsonBool(settings.preDrain);
+  j += "}";
+  sendJson(j);
+}
+
+static void handleConfigPost() {
+  if (cycleActive()) return sendError(409, "ciclo em andamento");
+
+  if (server.hasArg("fillSec"))    settings.fillSec    = constrain(server.arg("fillSec").toInt(), 5, 600);
+  if (server.hasArg("drainSec"))   settings.drainSec   = constrain(server.arg("drainSec").toInt(), 5, 600);
+  if (server.hasArg("washMin"))    settings.washMin    = constrain(server.arg("washMin").toInt(), 1, 120);
+  if (server.hasArg("heatMaxMin")) settings.heatMaxMin = constrain(server.arg("heatMaxMin").toInt(), 1, 120);
+  if (server.hasArg("rinseMin"))   settings.rinseMin   = constrain(server.arg("rinseMin").toInt(), 1, 60);
+  if (server.hasArg("nRinses"))    settings.nRinses    = constrain(server.arg("nRinses").toInt(), 0, 5);
+  if (server.hasArg("rinseHeat"))  settings.rinseHeat  = server.arg("rinseHeat").toInt() == 1;
+  if (server.hasArg("preDrain"))   settings.preDrain   = server.arg("preDrain").toInt() == 1;
+  saveSettings();
+  sendOk();
+}
+
+static void handleConfigDefaults() {
+  if (cycleActive()) return sendError(409, "ciclo em andamento");
+  restoreDefaultSettings();
+  sendOk();
+}
+
+static void handleLogClear() {
+  clearLog();
+  sendOk();
+}
+
+static void handleRestart() {
+  if (cycleActive()) return sendError(409, "ciclo em andamento");
+  addLog("Reiniciando pela pagina (debug e admin)");
+  restartAtMs = millis() + 500;
+  sendOk();
+}
+
+// Motivo do último reinício, em português.
+static const char* resetReasonText() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:  return "ligou na energia";
+    case ESP_RST_SW:       return "reinicio pelo software";
+    case ESP_RST_PANIC:    return "travou (panic)";
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT:      return "watchdog";
+    case ESP_RST_BROWNOUT: return "queda de tensao (brownout)";
+    case ESP_RST_EXT:      return "botao reset";
+    default:               return "outro";
+  }
+}
+
+// Nome escrito na placa ESP32 DevKit para cada GPIO (GPIO32 = "D32").
+static String pinLabel(uint8_t gpio) { return "D" + String(gpio); }
+
+static String inputJson(const char* name, uint8_t pin, bool logical) {
+  return "{\"name\":" + jsonText(name) + ",\"label\":" + jsonText(pinLabel(pin)) + ",\"gpio\":" + String(pin) +
+         ",\"raw\":" + String(digitalRead(pin)) + ",\"value\":" + jsonBool(logical) + "}";
+}
+
+static void handleDebug() {
+  String j = "{";
+  j += "\"firmware\":"   + jsonText(String(__DATE__) + " " + __TIME__);
+  j += ",\"chip\":"      + jsonText(String(ESP.getChipModel()) + " rev " + ESP.getChipRevision());
+  j += ",\"cpuMHz\":"    + String(ESP.getCpuFreqMHz());
+  j += ",\"sdk\":"       + jsonText(ESP.getSdkVersion());
+  j += ",\"heapFree\":"  + String(ESP.getFreeHeap());
+  j += ",\"heapMin\":"   + String(ESP.getMinFreeHeap());
+  j += ",\"uptime\":"    + String(millis() / 1000);
+  j += ",\"resetReason\":" + jsonText(resetReasonText());
+  j += ",\"wifiHome\":"  + jsonBool(WiFi.status() == WL_CONNECTED);
+  j += ",\"rssi\":"      + String(WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0);
+  j += ",\"apClients\":" + String(WiFi.softAPgetStationNum());
+  j += ",\"ip\":"        + jsonText(networkAddresses());
+  j += ",\"relayActiveHigh\":" + jsonBool(RELAY_ACTIVE_LEVEL == HIGH);
+
+  j += ",\"inputs\":[";
+  j += inputJson("Porta (fechada)", PIN_DOOR, doorClosed()) + ",";
+  j += inputJson("Termostato da cuba (quente)", PIN_TANK_THERMOSTAT, tankHot()) + ",";
+  j += inputJson("Klixon (disparado)", PIN_KLIXON, klixonTripped());
+  j += "]";
+
+  j += ",\"relays\":[";
+  for (int i = 0; i < RELAY_COUNT; i++) {
+    if (i) j += ",";
+    j += "{\"name\":" + jsonText(RELAY_NAME[i]) + ",\"label\":" + jsonText(pinLabel(RELAY_PIN[i])) + ",\"gpio\":" + String(RELAY_PIN[i]) +
+         ",\"on\":" + jsonBool(relayOn[i]) + ",\"maxTestS\":" + String(TEST_MAX_MS[i] / 1000) + "}";
+  }
+  j += "]}";
+  sendJson(j);
+}
+
+// ---------- Setup / loop ----------
+
+void setupWebServer() {
+  server.on("/", HTTP_GET, []() { server.send_P(200, "text/html", PAGE); });
+
+  server.on("/api/status", HTTP_GET,  handleStatus);
+  server.on("/api/cycle",  HTTP_POST, handleCycle);
+  server.on("/api/reset",  HTTP_POST, handleReset);
+
+  server.on("/api/debug",           HTTP_GET,  handleDebug);
+  server.on("/api/relay",           HTTP_POST, handleRelay);
+  server.on("/api/water",           HTTP_POST, handleWater);
+  server.on("/api/config",          HTTP_GET,  handleConfigGet);
+  server.on("/api/config",          HTTP_POST, handleConfigPost);
+  server.on("/api/config/defaults", HTTP_POST, handleConfigDefaults);
+  server.on("/api/log/clear",       HTTP_POST, handleLogClear);
+  server.on("/api/restart",         HTTP_POST, handleRestart);
+
+  server.begin();
+}
+
+void handleWebClients() {
+  server.handleClient();
+
+  if (restartAtMs && millis() >= restartAtMs) {
+    forceAllRelaysOff();
+    ESP.restart();
+  }
+}
