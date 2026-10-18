@@ -73,7 +73,7 @@ static void runPreDrainStep() {
 static void runFillStep() {
   turnOnFillValve();
   if (stepTimeIsUp()) {
-    waterPresent = true;
+    markFilledByValve();
     goToStep(STEP_WASH);
   }
 }
@@ -102,7 +102,7 @@ static void runWashStep() {
 static void runDrainStep() {
   turnOnDrainPump();
   if (stepTimeIsUp()) {
-    waterPresent = false;
+    markDrained();
     rinseIndex = 0;
     goToNextRinseOrFinish();
   }
@@ -111,7 +111,7 @@ static void runDrainStep() {
 static void runRinseFillStep() {
   turnOnFillValve();
   if (stepTimeIsUp()) {
-    waterPresent = true;
+    markFilledByValve();
     goToStep(STEP_RINSE);
   }
 }
@@ -126,7 +126,7 @@ static void runRinseStep() {
 static void runRinseDrainStep() {
   turnOnDrainPump();
   if (stepTimeIsUp()) {
-    waterPresent = false;
+    markDrained();
     rinseIndex++;
     goToNextRinseOrFinish();
   }

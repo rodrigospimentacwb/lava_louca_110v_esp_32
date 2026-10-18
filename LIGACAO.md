@@ -139,7 +139,7 @@ Na lavagem, a água esfria ao bater nas louças, o termostato fecha de novo e a 
 **Proteções:**
 - Porta aberta: tudo desliga e o ciclo **pausa**. Retoma 2 s depois que fechar.
 - Klixon fechado: tudo desliga, o ciclo é cancelado e fica em falha até você apertar **Limpar falha** (só aceita com o Klixon aberto de novo).
-- Resistência só liga com água estimada na cuba, e no ciclo só junto com a bomba de lavagem.
+- Resistência só liga com água que entrou pelo solenoide ("Marcar com água" na página não basta), e no ciclo só junto com a bomba de lavagem.
 - Solenoide e drenagem nunca ligam juntos.
 
 Não há etapa de secagem com a resistência, de propósito: sem água e sem bóia, aquecer a seco é o cenário mais perigoso. Quando instalar a bóia, dá para trocar o enchimento por tempo pela leitura dela.

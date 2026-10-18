@@ -31,7 +31,7 @@ A aba aberta fica na URL (`#admin`).
 | `POST /api/reset` | limpar falha do Klixon |
 | `GET /api/debug` | leituras cruas, pinos, sistema (a cada 2 s, só na aba admin) |
 | `POST /api/relay?i=0..3&on=0\|1` | teste manual (409 com ciclo rodando) |
-| `POST /api/water?v=0\|1` | marcar água manualmente |
+| `POST /api/water?v=0\|1` | marcar água manualmente (só informa; não libera a resistência) |
 | `GET/POST /api/config` | configuração do ciclo (POST: 409 com ciclo rodando; valores limitados com `constrain`) |
 | `POST /api/config/defaults` | voltar aos padrões |
 | `POST /api/log/clear` | limpar registro |
@@ -39,4 +39,11 @@ A aba aberta fica na URL (`#admin`).
 
 Erros respondem `{"error": "…"}`; a página traduz para uma mensagem amigável no aviso (toast).
 
-Não há autenticação: qualquer um na rede `LavaLoucas` (protegida por senha) ou na rede de casa acessa tudo.
+## Proteção da API (`guarded()` no `web_server.cpp`)
+
+Não há senha: qualquer um na rede `LavaLoucas` (protegida por senha) ou na rede de casa acessa tudo. Mas um **site** aberto num celular dessas redes não pode comandar a placa:
+
+- **Ações (POST)** exigem o cabeçalho `X-Lava: 1`. A função `post()` da página manda; um site de fora não consegue mandar cabeçalho próprio sem permissão de CORS, e a placa nunca responde a CORS. Sem ele: `403 {"error":"pedido recusado"}`. Isso bloqueia CSRF (formulário escondido ou `fetch` de outro site).
+- **Todas as rotas `/api`** exigem que o `Host` seja o IP da rede de casa, o IP do AP (`192.168.4.1`) ou `lavaloucas.local`. Isso bloqueia DNS rebinding.
+- Ao criar uma rota nova: registrar com `guarded(handler, true)` se mudar algo, `guarded(handler, false)` se só ler. Toda chamada que muda algo na página passa por `post()`.
+- Para testar com `curl`: `curl -X POST -H 'X-Lava: 1' 'http://192.168.18.36/api/relay?i=1&on=0'`.

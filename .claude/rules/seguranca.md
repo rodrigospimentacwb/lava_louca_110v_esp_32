@@ -6,7 +6,8 @@ A máquina tem 110 V, água e uma resistência de 800 a 1200 W. Software pode tr
 |---|---|
 | Porta aberta desliga **todos** os relés e pausa o ciclo; retoma 2 s depois de fechar | `safety.cpp` (`applySafetyInterlocks`, `doorClosedLongEnough`) |
 | Klixon fechado: desliga tudo **na hora**, cancela o ciclo e fica em falha até Reset; Reset só com Klixon aberto | `safety.cpp` (`checkOverTemperature`, `resetFault`) |
-| Resistência só liga com água estimada na cuba **e** termostato da cuba fechado | `safety.cpp` |
+| Resistência só liga com água que entrou pelo solenoide (`waterFromValve`) **e** termostato da cuba fechado. "Marcar com água" na página não libera a resistência | `safety.cpp`, `water.cpp` |
+| Ações da API (POST) exigem o cabeçalho `X-Lava: 1` e o endereço da placa no `Host`; leituras (GET) exigem o `Host` | `web_server.cpp` (`guarded`) |
 | Solenoide de entrada e bomba de drenagem nunca juntos (a drenagem ganha) | `safety.cpp` e `startTest()` |
 | No boot, cada relé é escrito como desligado **antes** do `pinMode(OUTPUT)` | `relays.cpp` (`setupRelays`) |
 | Relés ativos em LOW, em pinos que ficam soltos no boot (D32, D33, D25, D26) = desligados. Nunca usar pinos de boot (0, 2, 5, 12, 15) nem o 14 para relé | `config.h` |
