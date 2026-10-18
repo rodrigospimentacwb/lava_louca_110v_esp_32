@@ -8,6 +8,7 @@ Caixa para a ESP32 DevKit V1, o módulo de 4 relés, o step-down LM2596 e um fan
 | `gabarito.py` | gabaritos finos para conferir a furação das placas e do fan antes de imprimir a caixa (usa as medidas do `caixa.py`) |
 | `desenhos/caixa_lava_loucas.3mf` | base e tampa para o Bambu Studio |
 | `desenhos/caixa_base.stl`, `caixa_tampa.stl` | as peças separadas |
+| `desenhos/caixa_bambu.3mf` | projeto do Bambu Studio salvo: base e tampa em 2 placas, com as configurações usadas (não é gerado pelo script) |
 | `desenhos/gabaritos.3mf`, `gabaritos.stl` | os gabaritos (cerca de 10 g) |
 | `desenhos/previa_*.png` | cortes vistos de cima, para conferir sem abrir o fatiador |
 
