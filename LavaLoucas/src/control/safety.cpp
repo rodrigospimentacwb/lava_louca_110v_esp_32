@@ -41,6 +41,9 @@ void applySafetyInterlocks() {
   // Resistência a seco queima (e é o maior risco de incêndio).
   if (relayRequested[RELAY_HEATER] && !waterPresent)
     blockRelay(RELAY_HEATER, "sem agua");
+  // "Com água" marcado à mão não basta: só vale a água que entrou pelo solenoide.
+  else if (relayRequested[RELAY_HEATER] && !waterFromValve)
+    blockRelay(RELAY_HEATER, "agua so marcada a mao");
 
   // Termostato da cuba aberto = já chegou na temperatura.
   if (relayRequested[RELAY_HEATER] && tankHot())

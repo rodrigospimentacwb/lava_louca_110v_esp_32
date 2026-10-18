@@ -6,7 +6,10 @@
 #include <Arduino.h>
 
 extern bool     waterPresent;
-extern uint32_t fillAccumMs;   // tempo acumulado de solenoide aberto (para calibrar o enchimento)
+extern bool     waterFromValve; // a água veio do solenoide (e não de "marcar com água" na página)
+extern uint32_t fillAccumMs;    // tempo acumulado de solenoide aberto (para calibrar o enchimento)
 
 void updateWaterEstimate(uint32_t dt);  // chamar depois de updateRelays()
-void setWaterManually(bool present);    // botão "marcar com água / vazia" da página
+void markFilledByValve();               // ciclo terminou de encher
+void markDrained();                     // ciclo terminou de drenar
+void setWaterManually(bool present);    // botão "marcar com água / vazia" da página (não libera a resistência)

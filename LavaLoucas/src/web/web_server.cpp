@@ -17,6 +17,7 @@
 #include "page.h"
 
 static WebServer server(80);
+static const char* const API_HEADER = "X-Lava";  // cabeçalho que toda ação da página manda
 static uint32_t restartAtMs = 0;  // reinício agendado (dá tempo de responder à página)
 
 // ---------- Ajudantes de JSON ----------
@@ -27,6 +28,35 @@ static String jsonText(const String& s) { return "\"" + s + "\""; }
 static void sendJson(const String& json) { server.send(200, "application/json", json); }
 static void sendOk() { sendJson("{\"ok\":true}"); }
 static void sendError(int code, const char* msg) { server.send(code, "application/json", "{\"error\":\"" + String(msg) + "\"}"); }
+
+// ---------- Quem pode pedir ----------
+// Sem isso, qualquer site aberto num celular da rede de casa poderia mandar, escondido,
+// um POST para /api/relay e ligar uma carga de 110 V.
+
+// O endereço digitado no navegador precisa ser o da placa. Bloqueia o "DNS rebinding"
+// (um site que faz o próprio domínio apontar para o IP da placa).
+static bool hostAllowed() {
+  String host = server.hostHeader();
+  int colon = host.indexOf(':');
+  if (colon >= 0) host = host.substring(0, colon);
+  host.toLowerCase();
+  return host == WiFi.localIP().toString() || host == WiFi.softAPIP().toString() ||
+         host == String(HOSTNAME) + ".local";
+}
+
+// Toda ação (POST) precisa do cabeçalho X-Lava, que a página manda. Outro site não consegue
+// mandar esse cabeçalho sem a permissão da placa (CORS), e a placa nunca dá essa permissão.
+static bool actionAllowed() {
+  return hostAllowed() && server.header(API_HEADER) == "1";
+}
+
+// Envolve uma rota: recusa (403) o pedido que não passou na conferência acima.
+static std::function<void()> guarded(void (*handler)(), bool isAction) {
+  return [handler, isAction]() {
+    if (!(isAction ? actionAllowed() : hostAllowed())) return sendError(403, "pedido recusado");
+    handler();
+  };
+}
 
 // ---------- Aba Principal ----------
 
@@ -218,19 +248,23 @@ static void handleDebug() {
 void setupWebServer() {
   server.on("/", HTTP_GET, []() { server.send_P(200, "text/html", PAGE); });
 
-  server.on("/api/status", HTTP_GET,  handleStatus);
-  server.on("/api/cycle",  HTTP_POST, handleCycle);
-  server.on("/api/reset",  HTTP_POST, handleReset);
+  // Leituras (GET): só conferem o endereço. Ações (POST): endereço + cabeçalho X-Lava.
+  server.on("/api/status", HTTP_GET,  guarded(handleStatus, false));
+  server.on("/api/cycle",  HTTP_POST, guarded(handleCycle, true));
+  server.on("/api/reset",  HTTP_POST, guarded(handleReset, true));
 
-  server.on("/api/debug",           HTTP_GET,  handleDebug);
-  server.on("/api/relay",           HTTP_POST, handleRelay);
-  server.on("/api/water",           HTTP_POST, handleWater);
-  server.on("/api/config",          HTTP_GET,  handleConfigGet);
-  server.on("/api/config",          HTTP_POST, handleConfigPost);
-  server.on("/api/config/defaults", HTTP_POST, handleConfigDefaults);
-  server.on("/api/log/clear",       HTTP_POST, handleLogClear);
-  server.on("/api/restart",         HTTP_POST, handleRestart);
+  server.on("/api/debug",           HTTP_GET,  guarded(handleDebug, false));
+  server.on("/api/relay",           HTTP_POST, guarded(handleRelay, true));
+  server.on("/api/water",           HTTP_POST, guarded(handleWater, true));
+  server.on("/api/config",          HTTP_GET,  guarded(handleConfigGet, false));
+  server.on("/api/config",          HTTP_POST, guarded(handleConfigPost, true));
+  server.on("/api/config/defaults", HTTP_POST, guarded(handleConfigDefaults, true));
+  server.on("/api/log/clear",       HTTP_POST, guarded(handleLogClear, true));
+  server.on("/api/restart",         HTTP_POST, guarded(handleRestart, true));
 
+  // Por padrão o WebServer só guarda alguns cabeçalhos; o X-Lava precisa ser pedido.
+  static const char* headerKeys[] = {API_HEADER};
+  server.collectHeaders(headerKeys, 1);
   server.begin();
 }
 

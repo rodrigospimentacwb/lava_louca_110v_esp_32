@@ -223,7 +223,7 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
 
     <section class="admin">
       <h2>Testar componentes</h2>
-      <p class="soft" id="testNote">Cada teste desliga sozinho no tempo máximo. A resistência só liga com água na cuba.</p>
+      <p class="soft" id="testNote">Cada teste desliga sozinho no tempo máximo. A resistência só liga com água que entrou pelo solenoide.</p>
       <div id="tests"></div>
       <div class="row">
         <span>Água na cuba<small id="waterInfo"></small></span>
@@ -296,12 +296,13 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
 
   const ERRORS = {
     'ciclo em andamento': 'Pare o ciclo antes de fazer isso.',
-    'rele invalido': 'Relé inválido.'
+    'rele invalido': 'Relé inválido.',
+    'pedido recusado': 'A placa recusou o pedido. Abra a página pelo endereço da placa.'
   };
 
   async function post(url, okMsg) {
     try {
-      const r = await fetch(url, { method: 'POST' });
+      const r = await fetch(url, { method: 'POST', headers: { 'X-Lava': '1' } });  // sem ele a placa recusa (403)
       const j = await r.json().catch(() => ({}));
       if (!r.ok) toast(ERRORS[j.error] || 'A placa recusou o pedido.');
       else if (okMsg) toast(okMsg);
@@ -459,7 +460,7 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
   function renderAdmin() {
     $('testNote').textContent = S.active
       ? 'Pare o ciclo para testar os componentes.'
-      : 'Cada teste desliga sozinho no tempo máximo. A resistência só liga com água na cuba.';
+      : 'Cada teste desliga sozinho no tempo máximo. A resistência só liga com água que entrou pelo solenoide.';
 
     $('tests').innerHTML = S.relays.map((r, i) => {
       const state = r.on ? 'Ligado' + (r.test ? ', desliga sozinho em ' + mmss(r.testLeftS) : '') : 'Desligado';
