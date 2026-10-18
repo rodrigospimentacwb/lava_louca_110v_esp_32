@@ -25,6 +25,41 @@ O timer antigo virou um dial na tela:
 
 A **ESP32** roda o firmware e cria a rede Wi-Fi. O **módulo de 4 relés 5 V** (com optoacoplador, liga com LOW) aciona as cargas de 110 V. A ligação entre as duas (pinos e alimentação) está no [`LIGACAO.md`](LIGACAO.md).
 
+## A caixa
+
+Impressa em 3D (PETG), com a ESP32, o módulo de relés, o step-down e um fan na tampa. Desenho paramétrico em Python; arquivos, medidas e como regerar no [`caixa/README.md`](caixa/README.md).
+
+| Base | Montada (tampa levantada) |
+|---|---|
+| <img src="caixa/desenhos/render_base.png" width="420" alt="Base da caixa vista de cima: divisória no meio, colunas das placas, furos dos prensa-cabos na parede direita e fendas de ar na esquerda"> | <img src="caixa/desenhos/render_montada.png" width="420" alt="Caixa com a tampa levantada: tampa com grade redonda do fan e os 4 parafusos dos cantos"> |
+
+- **Dois lados separados por uma divisória:** à esquerda a baixa tensão (ESP32, step-down, fios dos sensores e entrada de 12 V); à direita o 110 V (relés e cabos das cargas).
+- **Fan de 70 mm na tampa** soprando para dentro; o ar sai pelas fendas da parede esquerda.
+- **Furos para prensa-cabos** e, ao lado de cada um, uma âncora para abraçadeira: um puxão no cabo não chega ao borne do relé.
+- Para ver em 3D, abra os `.stl` em [`caixa/desenhos/`](caixa/desenhos) aqui no GitHub.
+
+### Lista de materiais
+
+| Item | Qtd. | Para quê |
+|---|---|---|
+| ESP32 DevKit V1 (30 pinos) | 1 | controle e Wi-Fi |
+| Módulo de 4 relés 5 V (SRD-05VDC-SL-C, com optoacoplador) | 1 | aciona as cargas de 110 V |
+| Step-down LM2596 | 1 | 12 V → 5 V para a ESP32 e os relés |
+| Fonte de 12 V (tipo carregador, ≥ 1 A) | 1 | alimentação (externa por enquanto) |
+| Fan 70 × 70 × 16 mm, 12 V (Delta AFB0712HB) | 1 | ventilação da caixa |
+| Filamento PETG | ~160 g | base e tampa |
+| Inserto de rosca M3 × 6 (Ø 4,2 mm) + parafuso M3 × 8 | 4 + 4 | tampa |
+| Inserto de rosca M2 × 4 (Ø 3,5 mm) + parafuso M2 × 5 | 10 + 10 | ESP32 (4), relés (4), LM2596 (2) |
+| Parafuso M3 × 25 + porca + arruela | 4 + 4 + 8 | fan |
+| Conector Wago 221-415 | 2 | distribuir fase e juntar neutros |
+| Ponteira tubular 1,0 e 1,5 mm² | 1 pacote | ponta dos fios nos bornes dos relés |
+| Cabo PP 3 × 1,5 mm² | ~1 m | entrada de força (fase, neutro, terra) |
+| Cabo PP 2 × 1,5 mm² | conforme a distância | resistência |
+| Cabo PP 2 × 1,0 mm² | 3 pedaços | bomba de lavagem, bomba de drenagem, solenoide |
+| Cabo manga de 6 vias | conforme a distância | porta, termostato da cuba, Klixon |
+| Abraçadeira de nylon (até 3,6 mm de largura) | 1 pacote | prender os cabos nas âncoras |
+| Prensa-cabo PG11 / PG9 / PG7 | 2 / 3 / 2 | vedação dos cabos (opcional por enquanto) |
+
 ## Como funciona
 
 A placa liga e desliga 4 cargas e lê 3 sensores:
@@ -64,8 +99,8 @@ Testes de bancada feitos até agora, sem 110 V:
 | Resistência bloqueada sem água e com a água quente | ✅ |
 | Porta aberta desliga e bloqueia tudo | ✅ |
 | Página recusa comandos vindos de outros sites | ✅ |
-| Resistência bloqueada com a água só marcada à mão | ⏳ |
-| Encher e drenar nunca juntos | ⏳ |
+| Resistência bloqueada com a água só marcada à mão | ✅ |
+| Encher e drenar nunca juntos | ✅ |
 | Sensores de verdade na máquina | ⏳ |
 | Testes com 110 V, calibrar o enchimento, ciclo completo | ⏳ |
 
@@ -103,6 +138,7 @@ LavaLoucas/
     ├── storage/          configuração salva e registro de eventos
     └── web/              Wi-Fi, API e a página
 docs/                     fotos da máquina e das placas, prints da página
+caixa/                    caixa impressa: scripts, STL/3MF e imagens
 scripts/intellisense.sh   autocomplete do VS Code
 ```
 

@@ -11,6 +11,7 @@ Caixa para a ESP32 DevKit V1, o módulo de 4 relés, o step-down LM2596 e um fan
 | `desenhos/caixa_bambu.3mf` | projeto do Bambu Studio salvo: base e tampa em 2 placas, com as configurações usadas (não é gerado pelo script) |
 | `desenhos/gabaritos.3mf`, `gabaritos.stl` | os gabaritos (cerca de 10 g) |
 | `desenhos/previa_*.png` | cortes vistos de cima, para conferir sem abrir o fatiador |
+| `render.py`, `desenhos/render_*.png` | imagens 3D da caixa usadas no README principal |
 
 ## Leiaute
 
@@ -49,4 +50,5 @@ curl -sSO https://bootstrap.pypa.io/get-pip.py && .venv/bin/python get-pip.py &&
 .venv/bin/pip install manifold3d trimesh numpy matplotlib
 .venv/bin/python -B caixa.py
 .venv/bin/python -B gabarito.py
+.venv/bin/python -B render.py
 ```
