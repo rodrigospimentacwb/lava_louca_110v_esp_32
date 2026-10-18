@@ -1,0 +1,6 @@
+# Credenciais locais (copie de secrets.example.h)
+secrets.h
+build/
+
+# Configuração local do Claude Code (as regras em .claude/rules vão para o git)
+.claude/settings.local.json
