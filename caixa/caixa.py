@@ -29,7 +29,8 @@ BOSS_D = 10.0                 # torres dos cantos
 
 # Insertos de rosca (furo ~0,4 mm menor que o diâmetro externo do inserto)
 M3_INSERT_D, M3_INSERT_DEPTH = 4.0, 6.5      # insertos M3 x 6 x 4.2 (furo 0,2 mm menor que o inserto)
-M2_INSERT_D, M2_INSERT_DEPTH = 3.2, 5.5      # insertos M2 x 4 x 3.5 (placas: furo de 3 mm, a cabeça do M1.6 passaria)
+M3_BOARD_INSERT_DEPTH = 5.5  # placas: insertos M3 x 4 x 4.2 (sobra 1,5 mm para a ponta do parafuso M3 x 6)
+BOARD_POST_D = 8.0           # coluna das placas: inserto de 4,2 mm + ~1,9 mm de parede
 
 # Divisória entre baixa tensão e 110 V
 DIV_X = 58.0                  # posição (x interno) da face oeste da divisória
@@ -37,25 +38,28 @@ DIV_T = 2.0
 
 # Módulo de 4 relés: 54 (x) x 73 (y), bornes virados para o leste
 RELAY_W, RELAY_L = 54.0, 73.0
-RELAY_X0 = 64.0
+RELAY_X0 = 66.0              # colunas a ~9 mm da divisória: espaço para o ferro dos insertos
 RELAY_Y0 = (IN_Y - RELAY_L) / 2
-# Furos (x, y) a partir do canto sul-oeste da placa; não formam retângulo. Conferidos no gabarito
-# em 2026-10-18. Oeste (x pequeno) = borda dos pinos GND/IN1-4/VCC; norte (y grande) = jumper JD-VCC.
-RELAY_HOLES = [(2.0, 3.0), (RELAY_W - 3.0, 3.0), (4.0, RELAY_L - 4.0), (RELAY_W - 4.0, RELAY_L - 4.0)]
+# Furos (x, y) a partir do canto sul-oeste da placa. Oeste (x pequeno) = borda dos pinos GND/IN1-4/VCC;
+# norte (y grande) = jumper JD-VCC. Medido com paquímetro direto na placa (2026-10-18): furos de 3 mm
+# com a borda a 2 mm das duas bordas da placa -> centro a 3,5 mm (47 x 66 entre centros).
+RELAY_HOLE_INSET_X, RELAY_HOLE_INSET_Y = 3.5, 3.5
+RELAY_HOLES = [(RELAY_HOLE_INSET_X, RELAY_HOLE_INSET_Y), (RELAY_W - RELAY_HOLE_INSET_X, RELAY_HOLE_INSET_Y),
+               (RELAY_HOLE_INSET_X, RELAY_L - RELAY_HOLE_INSET_Y), (RELAY_W - RELAY_HOLE_INSET_X, RELAY_L - RELAY_HOLE_INSET_Y)]
 RELAY_PINS_Y = 57.0           # centro da barra de pinos de entrada, ao longo da borda oeste
-RELAY_STANDOFF_H, RELAY_STANDOFF_D = 6.0, 7.0
+RELAY_STANDOFF_H = 6.0
 
 # ESP32 DevKit V1: 28 (x) x 52 (y), USB virado para o sul (y = 0)
 ESP_W, ESP_L = 28.0, 52.0
-ESP_X0, ESP_Y0 = 4.0, 2.0
+ESP_X0, ESP_Y0 = 15.0, 6.0    # longe das paredes (ferro dos insertos); USB a 6 mm da parede sul
 ESP_HOLE_DX, ESP_HOLE_DY = 23.0, 47.0        # conferido no gabarito em 2026-10-18
-ESP_PILLAR_H, ESP_PILLAR_D = 12.0, 6.0       # pinos ficam soldados embaixo, sem nada ligado (~8,5 mm + folga); fios soldados por cima
+ESP_PILLAR_H = 12.0                          # pinos ficam soldados embaixo, sem nada ligado (~8,5 mm + folga); fios soldados por cima
 
 # Step-down LM2596: 21 (x) x 43 (y), furos em cantos opostos
 LM_W, LM_L = 21.0, 43.0
-LM_X0, LM_Y0 = 35.0, 2.0
+LM_X0, LM_Y0 = 30.0, 64.0     # ao norte da ESP, longe das paredes e da divisória
 LM_HOLES = [(3.0, 3.5), (LM_W - 3.0, LM_L - 3.5)]  # CONFERIR: posição dos furos no módulo
-LM_STANDOFF_H, LM_STANDOFF_D = 6.0, 7.0
+LM_STANDOFF_H = 6.0
 
 # Prensa-cabos (furo para a rosca)
 PG7_D, PG9_D, PG11_D = 12.7, 15.4, 18.8
@@ -129,30 +133,30 @@ for i in range(9):
     div = div - box(ix + DIV_X - 1, iy + yy, iz + 22, DIV_T + 2, 3.0, 12)
 base = base + div
 
-# Colunas do módulo de relés (M2)
+# Colunas do módulo de relés (M3)
 holes = Manifold()
 for hx, hy in RELAY_HOLES:
     p, h = standoff(ix + RELAY_X0 + hx, iy + RELAY_Y0 + hy,
-                    RELAY_STANDOFF_H, RELAY_STANDOFF_D, M2_INSERT_D, M2_INSERT_DEPTH)
+                    RELAY_STANDOFF_H, BOARD_POST_D, M3_INSERT_D, M3_BOARD_INSERT_DEPTH)
     base, holes = base + p, holes + h
 
-# Colunas da ESP32 (M2)
+# Colunas da ESP32 (M3)
 ecx, ecy = ix + ESP_X0 + ESP_W / 2, iy + ESP_Y0 + ESP_L / 2
 for sx in (-1, 1):
     for sy in (-1, 1):
         p, h = standoff(ecx + sx * ESP_HOLE_DX / 2, ecy + sy * ESP_HOLE_DY / 2,
-                        ESP_PILLAR_H, ESP_PILLAR_D, M2_INSERT_D, M2_INSERT_DEPTH)
+                        ESP_PILLAR_H, BOARD_POST_D, M3_INSERT_D, M3_BOARD_INSERT_DEPTH)
         base, holes = base + p, holes + h
 
-# Colunas do LM2596 (M2)
+# Colunas do LM2596 (M3)
 for hx, hy in LM_HOLES:
-    p, h = standoff(ix + LM_X0 + hx, iy + LM_Y0 + hy, LM_STANDOFF_H, LM_STANDOFF_D, M2_INSERT_D, M2_INSERT_DEPTH)
+    p, h = standoff(ix + LM_X0 + hx, iy + LM_Y0 + hy, LM_STANDOFF_H, BOARD_POST_D, M3_INSERT_D, M3_BOARD_INSERT_DEPTH)
     base, holes = base + p, holes + h
 base = base - holes
 
 # Furo do USB da ESP32 (parede sul), para regravar sem abrir a caixa
 usb_z = iz + ESP_PILLAR_H + 1.6 + 1.5
-base = base - slot_y(ecx, 0, usb_z, 12.0, 8.0)
+base = base - slot_y(ecx, 0, usb_z, 13.0, 9.0)   # folga para a capa do plugue entrar
 
 # Parede leste (110 V): entrada de força + resistência (PG11) e 3 cargas (PG9)
 east_glands = [(16, PG11_D), (42, PG11_D), (66, PG9_D), (86, PG9_D), (106, PG9_D)]
