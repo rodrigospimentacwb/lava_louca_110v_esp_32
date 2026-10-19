@@ -29,3 +29,20 @@ Não há testes automatizados: "funcionou" = compila sem erro **e sem aviso**. M
 - [`.claude/rules/web.md`](.claude/rules/web.md): página, abas, API e design
 
 Contexto de hardware, esquema elétrico e ordem de testes: `LIGACAO.md`.
+
+## Caixa impressa (`caixa/`)
+
+Desenho paramétrico em Python (manifold3d + trimesh); detalhes em `caixa/README.md`.
+
+```bash
+cd caixa
+.venv/bin/python -B caixa.py      # base e tampa → desenhos/
+.venv/bin/python -B gabarito.py   # gabaritos de furação
+.venv/bin/python -B render.py     # imagens do README
+```
+
+- Medidas de placas e furos só valem depois de medidas **com paquímetro direto na placa**; o que for estimado fica marcado `CONFERIR` no script.
+- **Insertos longe das paredes** (8–10 mm livres em volta): o dono instala com ferro de solda e perto da parede derrete a lateral.
+- Antes de escolher a rosca, confirmar que o dono tem **o inserto e o parafuso** daquele tamanho. Hoje tudo é M3.
+- A tampa só muda se mexer nas torres dos cantos ou no fan; avisar quando uma mudança obriga a reimprimir a tampa.
+- Depois de regerar, conferir "fechada: True" nas duas peças e olhar as prévias `previa_*.png`.

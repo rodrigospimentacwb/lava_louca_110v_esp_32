@@ -49,8 +49,8 @@ Impressa em 3D (PETG), com a ESP32, o módulo de relés, o step-down e um fan na
 | Fan 70 × 70 × 16 mm, 12 V (Delta AFB0712HB) | 1 | ventilação da caixa |
 | Filamento PETG | ~160 g | base e tampa |
 | Inserto de rosca M3 × 6 (Ø 4,2 mm) + parafuso M3 × 8 | 4 + 4 | tampa |
-| Inserto de rosca M2 × 4 (Ø 3,5 mm) + parafuso M2 × 5 | 10 + 10 | ESP32 (4), relés (4), LM2596 (2) |
-| Parafuso M3 × 25 + porca + arruela | 4 + 4 + 8 | fan |
+| Inserto de rosca M3 × 4 (Ø 4,2 mm) + parafuso M3 × 6 | 10 + 10 | ESP32 (4), relés (4), LM2596 (2) |
+| Parafuso M3 × 25 + porca autotravante + arruela | 4 + 4 + 8 | fan (por fora, em cima da tampa) |
 | Conector Wago 221-415 | 2 | distribuir fase e juntar neutros |
 | Ponteira tubular 1,0 e 1,5 mm² | 1 pacote | ponta dos fios nos bornes dos relés |
 | Cabo PP 3 × 1,5 mm² | ~1 m | entrada de força (fase, neutro, terra) |

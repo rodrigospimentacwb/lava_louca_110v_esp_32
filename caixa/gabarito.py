@@ -1,25 +1,27 @@
 """Gabaritos de teste: confere a furação das placas e do fan antes de imprimir a caixa inteira.
 
-Cada gabarito é uma moldura fina do tamanho da placa, com as colunas (inserto M2) nas
-mesmas posições usadas em caixa.py. A placa encaixada deve cobrir a moldura e os furos
-devem cair no centro das colunas. No dos relés, a aba marca o lado do jumper JD-VCC. O do fan é um quadrado de 70 mm com os 4 furos M3.
+Cada gabarito é uma moldura fina do tamanho da placa, com colunas nas mesmas posições usadas
+em caixa.py e um pino de 2,6 mm em cada uma. A placa só desce até as colunas se todos os furos
+estiverem no lugar (folga de ~0,2 mm). As colunas não passam da moldura, então dá para alinhar
+pela borda. No dos relés, a aba marca o lado do jumper JD-VCC. O do fan é um quadrado de 70 mm com os 4 furos M3.
 
 Rode:
     .venv/bin/python gabarito.py
-Gera em desenhos/: gabaritos.stl e gabaritos.3mf (tudo numa placa da A1).
+Gera em desenhos/: gabaritos.stl e gabaritos.3mf (tudo numa placa da A1) e gabarito_reles.stl.
 """
 import os
 import trimesh
-from caixa import (box, cyl, to_trimesh, M2_INSERT_D, M2_INSERT_DEPTH, SCREW_D,
-                   RELAY_W, RELAY_L, RELAY_HOLES, RELAY_STANDOFF_D,
-                   ESP_W, ESP_L, ESP_HOLE_DX, ESP_HOLE_DY, ESP_PILLAR_D,
-                   LM_W, LM_L, LM_HOLES, LM_STANDOFF_D,
+from caixa import (box, cyl, to_trimesh, SCREW_D, BOARD_POST_D,
+                   RELAY_W, RELAY_L, RELAY_HOLES,
+                   ESP_W, ESP_L, ESP_HOLE_DX, ESP_HOLE_DY,
+                   LM_W, LM_L, LM_HOLES,
                    FAN, FAN_HOLE_SPACING, FAN_OPEN_D)
 
 PLATE_T = 1.2                 # espessura da moldura
 FRAME_W = 7.0                 # largura da moldura (as colunas ficam em cima dela)
 POST_H = 6.5                  # altura da coluna a partir da mesa
 GAP = 10.0                    # espaço entre os gabaritos
+PIN_D, PIN_H = 2.6, 3.0       # pino que entra no furo de 3 mm da placa
 
 
 def frame(w, l):
@@ -29,10 +31,10 @@ def frame(w, l):
 
 def board_template(w, l, holes, post_d):
     m = frame(w, l)
+    for hx, hy in holes:   # coluna cortada no contorno da placa: nada sobra para fora
+        m = m + (cyl(hx, hy, 0, post_d, POST_H) ^ box(0, 0, -1, w, l, POST_H + 2))
     for hx, hy in holes:
-        m = m + cyl(hx, hy, 0, post_d, POST_H)
-    for hx, hy in holes:
-        m = m - cyl(hx, hy, POST_H - M2_INSERT_DEPTH, M2_INSERT_D, M2_INSERT_DEPTH + 1)
+        m = m + cyl(hx, hy, POST_H - 0.1, PIN_D, PIN_H + 0.1, 32)
     return m
 
 
@@ -40,11 +42,11 @@ def centered_holes(w, l, dx, dy):
     return [(w / 2 + sx * dx / 2, l / 2 + sy * dy / 2) for sx in (-1, 1) for sy in (-1, 1)]
 
 
-relay = board_template(RELAY_W, RELAY_L, RELAY_HOLES, RELAY_STANDOFF_D)
+relay = board_template(RELAY_W, RELAY_L, RELAY_HOLES, BOARD_POST_D)
 # Aba no meio da borda do lado do JD-VCC: mostra para que lado encaixar a placa
 relay = relay + box(RELAY_W / 2 - 5, RELAY_L - 0.1, 0, 10, 6, PLATE_T)
-esp = board_template(ESP_W, ESP_L, centered_holes(ESP_W, ESP_L, ESP_HOLE_DX, ESP_HOLE_DY), ESP_PILLAR_D)
-lm = board_template(LM_W, LM_L, LM_HOLES, LM_STANDOFF_D)
+esp = board_template(ESP_W, ESP_L, centered_holes(ESP_W, ESP_L, ESP_HOLE_DX, ESP_HOLE_DY), BOARD_POST_D)
+lm = board_template(LM_W, LM_L, LM_HOLES, BOARD_POST_D)
 
 # Fan: quadrado de 70 mm, abertura das pás e os 4 furos de passagem M3
 fan = box(0, 0, 0, FAN, FAN, 2.4) - cyl(FAN / 2, FAN / 2, -1, FAN_OPEN_D, 4.4, 96)
@@ -66,3 +68,4 @@ if __name__ == "__main__":
         print(f"{name:7s} fechado: {t.is_watertight} tamanho {t.extents.round(1)}")
     trimesh.util.concatenate(list(meshes.values())).export(os.path.join(out, "gabaritos.stl"))
     trimesh.Scene(meshes).export(os.path.join(out, "gabaritos.3mf"))
+    meshes["reles"].export(os.path.join(out, "gabarito_reles.stl"))   # para imprimir só o dos relés
