@@ -33,3 +33,23 @@ String networkAddresses() {
   String home = WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() + " / " : String("");
   return home + WiFi.softAPIP().toString();
 }
+
+// ---------- Senha de atualização do programa ----------
+// OTA_PASS fica no secrets.h, que só este arquivo inclui. Sem ela, atualizar pela página fica desligado.
+
+bool updateEnabled() {
+#ifdef OTA_PASS
+  return strlen(OTA_PASS) >= 8;
+#else
+  return false;
+#endif
+}
+
+bool updatePasswordOk(const String& typed) {
+#ifdef OTA_PASS
+  return updateEnabled() && typed == OTA_PASS;
+#else
+  (void)typed;
+  return false;
+#endif
+}

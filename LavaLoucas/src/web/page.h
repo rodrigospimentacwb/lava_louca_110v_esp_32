@@ -136,6 +136,9 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
   }
   input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--wash) }
   .form-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap }
+  input[type=file], input[type=password] { font: inherit; min-width: 0; max-width: 62% }
+  input[type=password] { padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); color: var(--ink) }
+  progress { width: 100%; margin-top: 12px; accent-color: var(--wash) }
 
   table { width: 100%; border-collapse: collapse; font-size: .9rem }
   th, td { text-align: left; padding: 7px 4px; border-top: 1px solid var(--line) }
@@ -256,6 +259,17 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
     </section>
 
     <section class="admin">
+      <h2>Atualizar o programa</h2>
+      <p class="soft" id="updNote">Escolha o arquivo .bin compilado no computador. A placa desliga tudo, grava e reinicia sozinha.</p>
+      <form class="cfg" id="updForm">
+        <label>Arquivo <input type="file" id="updFile" accept=".bin" required></label>
+        <label>Senha de atualização <input type="password" id="updPass" autocomplete="current-password" required></label>
+        <progress id="updProg" max="100" value="0" hidden></progress>
+        <div class="form-actions"><button class="btn" type="submit" id="updBtn">Enviar e reiniciar</button></div>
+      </form>
+    </section>
+
+    <section class="admin">
       <h2>Sistema</h2>
       <dl id="sys"></dl>
       <div class="form-actions">
@@ -284,7 +298,11 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
   const ERRORS = {
     'ciclo em andamento': 'Pare o ciclo antes de fazer isso.',
     'rele invalido': 'Relé inválido.',
-    'pedido recusado': 'A placa recusou o pedido. Abra a página pelo endereço da placa.'
+    'pedido recusado': 'A placa recusou o pedido. Abra a página pelo endereço da placa.',
+    'senha errada': 'Senha de atualização errada.',
+    'atualizacao desligada': 'Atualização desligada: defina OTA_PASS no secrets.h e grave uma vez pela USB.',
+    'envio interrompido': 'O envio caiu no meio. A placa continua com o programa antigo.',
+    'arquivo nao enviado': 'Escolha o arquivo .bin.'
   };
 
   async function post(url, okMsg) {
@@ -475,6 +493,10 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
     $('rawRelays').innerHTML = d.relays.map(x =>
       `<tr><td>${x.name}</td><td class="r num">${x.label}</td><td class="r num">${mmss(x.maxTestS)}</td><td class="r">${x.on ? 'ligado' : 'desligado'}</td></tr>`).join('');
     $('activeLevel').textContent = 'Relés ligam com nível ' + (d.relayActiveHigh ? 'HIGH' : 'LOW') + ' (RELAY_ACTIVE_LEVEL no config.h).';
+    if (!uploading) $('updBtn').disabled = !d.updateEnabled;
+    $('updNote').textContent = d.updateEnabled
+      ? 'Escolha o arquivo .bin compilado no computador. A placa desliga tudo, grava e reinicia sozinha.'
+      : 'Desligada: defina OTA_PASS no secrets.h e grave uma vez pela USB.';
 
     const kb = b => (b / 1024).toFixed(0) + ' KB';
     const rows = [
@@ -560,6 +582,32 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
     if (!confirm('Voltar todos os tempos do ciclo para os valores padrão?')) return;
     await post('/api/config/defaults', 'Configuração voltou aos padrões.');
     loadConfig();
+  };
+
+  // Atualizar o programa: XMLHttpRequest (e não fetch) para mostrar o progresso do envio.
+  let uploading = false;
+  $('updForm').onsubmit = e => {
+    e.preventDefault();
+    const file = $('updFile').files[0];
+    if (!file || !confirm(`Gravar ${file.name} (${Math.round(file.size / 1024)} KB)? A placa desliga tudo e reinicia.`)) return;
+    const fd = new FormData();
+    fd.append('firmware', file, file.name);
+    const x = new XMLHttpRequest(), prog = $('updProg');
+    const finish = () => { uploading = false; $('updBtn').disabled = false; prog.hidden = true; };
+    x.open('POST', '/api/update');
+    x.setRequestHeader('X-Lava', '1');
+    x.setRequestHeader('X-Senha', $('updPass').value);
+    x.upload.onprogress = ev => { if (ev.lengthComputable) prog.value = 100 * ev.loaded / ev.total; };
+    x.onload = () => {
+      finish();
+      let j = {};
+      try { j = JSON.parse(x.responseText); } catch (err) {}
+      if (x.status === 200) { $('updForm').reset(); toast('Programa gravado. A placa está reiniciando…'); }
+      else toast(ERRORS[j.error] || 'Falhou (' + (j.error || 'erro ' + x.status) + '). A placa continua com o programa antigo.');
+    };
+    x.onerror = () => { finish(); toast('Sem conexão com a lava-louças.'); };
+    uploading = true; $('updBtn').disabled = true; prog.value = 0; prog.hidden = false;
+    x.send(fd);
   };
 
   $('restartBtn').onclick = () => {

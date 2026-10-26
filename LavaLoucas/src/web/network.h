@@ -7,3 +7,5 @@
 
 void setupNetwork();
 String networkAddresses();  // "192.168.0.50 / 192.168.4.1" (casa / AP)
+bool updateEnabled();                     // OTA_PASS definida no secrets.h (8+ caracteres)
+bool updatePasswordOk(const String& typed);  // senha de atualização certa

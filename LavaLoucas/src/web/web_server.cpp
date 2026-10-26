@@ -3,6 +3,7 @@
 
 #include "web_server.h"
 #include <WebServer.h>
+#include <Update.h>
 #include <WiFi.h>
 #include <esp_system.h>
 #include "../../config.h"
@@ -18,6 +19,7 @@
 
 static WebServer server(80);
 static const char* const API_HEADER = "X-Lava";  // cabeçalho que toda ação da página manda
+static const char* const UPDATE_PASS_HEADER = "X-Senha";  // senha de atualização do programa
 static uint32_t restartAtMs = 0;  // reinício agendado (dá tempo de responder à página)
 
 // ---------- Ajudantes de JSON ----------
@@ -220,6 +222,7 @@ static void handleDebug() {
   j += ",\"apClients\":" + String(WiFi.softAPgetStationNum());
   j += ",\"ip\":"        + jsonText(networkAddresses());
   j += ",\"relayActiveHigh\":" + jsonBool(RELAY_ACTIVE_LEVEL == HIGH);
+  j += ",\"updateEnabled\":" + jsonBool(updateEnabled());
 
   j += ",\"inputs\":[";
   j += inputJson("Porta (fechada)", PIN_DOOR, doorClosed()) + ",";
@@ -235,6 +238,64 @@ static void handleDebug() {
   }
   j += "]}";
   sendJson(j);
+}
+
+// ---------- Atualizar o programa pela página ----------
+// O .bin chega em pedaços em updateUpload(); updateDone() responde no fim. Tudo é conferido
+// no começo do envio, antes de gravar qualquer coisa: endereço, X-Lava, senha e ciclo parado.
+// Update.end(true) só troca o programa se o arquivo chegou inteiro e é válido; se não,
+// a placa continua com o programa antigo.
+
+static bool   updateStarted = false;
+static String updateError;  // vazio = tudo certo até aqui
+
+static void updateUpload() {
+  if (!server.hasUpload()) return;
+  HTTPUpload& up = server.upload();
+
+  if (up.status == UPLOAD_FILE_START) {
+    updateStarted = true;
+    updateError = "";
+    if (!actionAllowed())                                           updateError = "pedido recusado";
+    else if (!updateEnabled())                                      updateError = "atualizacao desligada";
+    else if (!updatePasswordOk(server.header(UPDATE_PASS_HEADER)))  updateError = "senha errada";
+    else if (cycleActive())                                         updateError = "ciclo em andamento";
+    if (updateError.length()) return;
+
+    stopAllTests();
+    forceAllRelaysOff();  // nada fica ligado durante a gravação e o reinício
+    addLog("Recebendo programa novo");
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) updateError = Update.errorString();
+  } else if (updateError.length()) {
+    return;  // recusado ou já falhou: ignora o resto do arquivo
+  } else if (up.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(up.buf, up.currentSize) != up.currentSize) {
+      updateError = Update.errorString();
+      Update.abort();
+    }
+  } else if (up.status == UPLOAD_FILE_END) {
+    if (!Update.end(true)) updateError = Update.errorString();
+  } else if (up.status == UPLOAD_FILE_ABORTED) {
+    Update.abort();
+    updateError = "envio interrompido";
+  }
+}
+
+static void updateDone() {
+  if (!updateStarted) updateError = "arquivo nao enviado";
+  updateStarted = false;
+  server.sendHeader("Connection", "close");
+
+  if (updateError.length()) {
+    int code = updateError == "ciclo em andamento" ? 409
+             : (updateError == "pedido recusado" || updateError == "senha errada" ||
+                updateError == "atualizacao desligada") ? 403 : 500;
+    addLog("Atualizacao recusada: " + updateError);
+    return sendError(code, updateError.c_str());
+  }
+  addLog("Programa atualizado, reiniciando");
+  sendOk();
+  restartAtMs = millis() + 500;
 }
 
 // ---------- Setup / loop ----------
@@ -254,10 +315,12 @@ void setupWebServer() {
   server.on("/api/config/defaults", HTTP_POST, guarded(handleConfigDefaults, true));
   server.on("/api/log/clear",       HTTP_POST, guarded(handleLogClear, true));
   server.on("/api/restart",         HTTP_POST, guarded(handleRestart, true));
+  // A conferência desta rota fica em updateUpload(), que roda antes de updateDone().
+  server.on("/api/update",          HTTP_POST, updateDone, updateUpload);
 
-  // Por padrão o WebServer só guarda alguns cabeçalhos; o X-Lava precisa ser pedido.
-  static const char* headerKeys[] = {API_HEADER};
-  server.collectHeaders(headerKeys, 1);
+  // Por padrão o WebServer só guarda alguns cabeçalhos; X-Lava e X-Senha precisam ser pedidos.
+  static const char* headerKeys[] = {API_HEADER, UPDATE_PASS_HEADER};
+  server.collectHeaders(headerKeys, 2);
   server.begin();
 }
 

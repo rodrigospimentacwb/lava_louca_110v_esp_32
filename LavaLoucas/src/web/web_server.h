@@ -8,6 +8,7 @@
 //                                    POST /api/config/defaults
 //                                    POST /api/log/clear
 //                                    POST /api/restart
+//                                    POST /api/update (arquivo .bin + X-Senha)
 #pragma once
 
 void setupWebServer();     // no setup(), depois do Wi-Fi
