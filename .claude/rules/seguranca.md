@@ -5,8 +5,8 @@ A máquina tem 110 V, água e uma resistência de 800 a 1200 W. Software pode tr
 | Regra | Onde |
 |---|---|
 | Porta aberta desliga **todos** os relés e pausa o ciclo; retoma 2 s depois de fechar | `safety.cpp` (`applySafetyInterlocks`, `doorClosedLongEnough`) |
-| Klixon fechado: desliga tudo **na hora**, cancela o ciclo e fica em falha até Reset; Reset só com Klixon aberto | `safety.cpp` (`checkOverTemperature`, `resetFault`) |
-| Resistência só liga com água que entrou pelo solenoide (`waterFromValve`) **e** termostato da cuba fechado. "Marcar com água" na página não libera a resistência | `safety.cpp`, `water.cpp` |
+| Klixon NF **em série com a resistência** (110 V): corta sozinho, sem software. Se um dia for para o `D21` (`KLIXON_ON_ESP`), disparado = só a resistência desliga, até a próxima etapa; o ciclo segue | `LIGACAO.md` item 4; `safety.cpp`, `cycle.cpp` (`heatIfCold`) |
+| Resistência só liga com água que entrou pelo solenoide (`waterFromValve`) **e** cuba fria (termostato da cuba aberto). "Marcar com água" na página não libera a resistência | `safety.cpp`, `water.cpp` |
 | Ações da API (POST) exigem o cabeçalho `X-Lava: 1` e o endereço da placa no `Host`; leituras (GET) exigem o `Host` | `web_server.cpp` (`guarded`) |
 | Solenoide de entrada e bomba de drenagem nunca juntos (a drenagem ganha) | `safety.cpp` e `startTest()` |
 | No boot, cada relé é escrito como desligado **antes** do `pinMode(OUTPUT)` | `relays.cpp` (`setupRelays`) |
@@ -27,7 +27,7 @@ Nenhum código liga relé direto. A cada `loop()`:
 
 ## Falhas seguras dos sensores
 
-Sensores são contato seco GPIO↔GND com pull-up interno. Fio solto = HIGH = porta "aberta" e cuba "quente", então tudo desliga. O Klixon é NA: fio solto nele **não** é detectado (por isso o termostato de segurança físico em série com a resistência).
+Sensores são contato seco GPIO↔GND com pull-up interno. Fio solto = HIGH: porta "aberta", então tudo desliga. O termostato da cuba é **NA** (fecha quando esquenta): fio solto nele = cuba "fria" e **não** é detectado; quem segura é o Klixon em série e o `heatMaxMin`. Nunca tirar o Klixon do circuito da resistência sem pôr outra proteção física no lugar.
 
 ## Ao mexer em algo de segurança
 

@@ -5,7 +5,7 @@
 - **Roda sem internet**: o celular fica na rede `LavaLoucas` da placa. Nada de Google Fonts, CDN ou bibliotecas externas; tudo dentro de `src/web/page.h` (HTML, CSS, JS e o favicon em data URI).
 - A página fica num raw string `R"HTML( … )HTML"`: o texto `)HTML"` não pode aparecer dentro do HTML.
 - Celular primeiro (coluna de até 560 px), modo claro e escuro (`prefers-color-scheme`), foco de teclado visível, respeita `prefers-reduced-motion`.
-- Textos para quem usa a máquina, em português, sem jargão do firmware ("Limpar falha", não "reset fault"). Falar "a placa", não o nome do chip.
+- Textos para quem usa a máquina, em português, sem jargão do firmware ("Parar tudo", não "stop cycle"). Falar "a placa", não o nome do chip.
 - Pinos aparecem com o nome escrito na placa (`D32`), que vem de `pinLabel()` no `web_server.cpp`.
 
 ## Abas
@@ -28,7 +28,6 @@ A aba aberta fica na URL (`#admin`).
 |---|---|
 | `GET /api/status` | tudo da aba principal + relés + registro (a cada 1 s) |
 | `POST /api/cycle?cmd=start\|stop` | iniciar / parar tudo |
-| `POST /api/reset` | limpar falha do Klixon |
 | `GET /api/debug` | leituras cruas, pinos, sistema (a cada 2 s, só na aba admin) |
 | `POST /api/relay?i=0..3&on=0\|1` | teste manual (409 com ciclo rodando) |
 | `POST /api/water?v=0\|1` | marcar água manualmente (só informa; não libera a resistência) |

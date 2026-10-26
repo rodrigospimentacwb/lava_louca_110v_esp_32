@@ -72,8 +72,7 @@ static void handleStatus() {
   j += "\"door\":"        + jsonBool(doorClosed());
   j += ",\"tankHot\":"    + jsonBool(tankHot());
   j += ",\"klixon\":"     + jsonBool(klixonTripped());
-  j += ",\"fault\":"      + jsonBool(fault);
-  j += ",\"faultMsg\":"   + jsonText(faultMsg);
+  j += ",\"klixonOnEsp\":" + jsonBool(KLIXON_ON_ESP);
   j += ",\"water\":"      + jsonBool(waterPresent);
   j += ",\"fillS\":"      + String(fillAccumMs / 1000.0, 1);
   j += ",\"active\":"     + jsonBool(cycleActive());
@@ -81,7 +80,7 @@ static void handleStatus() {
   j += ",\"stepId\":"     + String((int)currentStep);
   j += ",\"step\":"       + jsonText(stepLabel());
   j += ",\"rinse\":"      + String(rinseIndex);
-  j += ",\"heating\":"    + jsonBool(currentStep == STEP_WASH && !washTempReached && !tankHot());
+  j += ",\"heating\":"    + jsonBool(currentStep == STEP_WASH && !washTempReached && !tankHot() && !heaterStoppedForStep());
   j += ",\"stepS\":"      + String(stepElapsedMs / 1000);
   j += ",\"stepTargetS\":" + String(stepTargetMs() / 1000);
   j += ",\"nRinses\":"    + String(settings.nRinses);
@@ -115,11 +114,6 @@ static void handleCycle() {
     stopCycle("pelo usuario");
     stopAllTests();
   }
-  sendOk();
-}
-
-static void handleReset() {
-  resetFault();
   sendOk();
 }
 
@@ -229,8 +223,8 @@ static void handleDebug() {
 
   j += ",\"inputs\":[";
   j += inputJson("Porta (fechada)", PIN_DOOR, doorClosed()) + ",";
-  j += inputJson("Termostato da cuba (quente)", PIN_TANK_THERMOSTAT, tankHot()) + ",";
-  j += inputJson("Klixon (disparado)", PIN_KLIXON, klixonTripped());
+  j += inputJson("Termostato da cuba (quente)", PIN_TANK_THERMOSTAT, tankHot());
+  if (KLIXON_ON_ESP) j += "," + inputJson("Klixon (disparado)", PIN_KLIXON, klixonTripped());
   j += "]";
 
   j += ",\"relays\":[";
@@ -251,7 +245,6 @@ void setupWebServer() {
   // Leituras (GET): só conferem o endereço. Ações (POST): endereço + cabeçalho X-Lava.
   server.on("/api/status", HTTP_GET,  guarded(handleStatus, false));
   server.on("/api/cycle",  HTTP_POST, guarded(handleCycle, true));
-  server.on("/api/reset",  HTTP_POST, guarded(handleReset, true));
 
   server.on("/api/debug",           HTTP_GET,  guarded(handleDebug, false));
   server.on("/api/relay",           HTTP_POST, guarded(handleRelay, true));

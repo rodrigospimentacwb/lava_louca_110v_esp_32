@@ -56,19 +56,19 @@ Impressa em 3D (PETG), com a ESP32, o módulo de relés, o step-down e um fan na
 | Cabo PP 3 × 1,5 mm² | ~1 m | entrada de força (fase, neutro, terra) |
 | Cabo PP 2 × 1,5 mm² | conforme a distância | resistência |
 | Cabo PP 2 × 1,0 mm² | 3 pedaços | bomba de lavagem, bomba de drenagem, solenoide |
-| Cabo manga de 6 vias | conforme a distância | porta, termostato da cuba, Klixon |
+| Cabo manga de 4 vias | conforme a distância | porta e termostato da cuba |
 | Abraçadeira de nylon (até 3,6 mm de largura) | 1 pacote | prender os cabos nas âncoras |
 | Prensa-cabo PG11 / PG9 / PG7 | 2 / 3 / 2 | vedação dos cabos (opcional por enquanto) |
 
 ## Como funciona
 
-A placa liga e desliga 4 cargas e lê 3 sensores:
+A placa liga e desliga 4 cargas e lê 2 sensores:
 
 | Liga e desliga (relés) | Lê (sensores) |
 |---|---|
 | Resistência (esquenta a água) | Porta fechada ou aberta |
 | Bomba de lavagem (joga água nas louças) | Termostato da cuba: a água chegou na temperatura? |
-| Bomba de drenagem (tira a água) | Klixon: a resistência superaqueceu? |
+| Bomba de drenagem (tira a água) | |
 | Solenoide de entrada (deixa a água entrar) | |
 
 Ainda não tem bóia, então o nível de água é controlado **pelo tempo** que o solenoide fica aberto.
@@ -79,7 +79,7 @@ Ainda não tem bóia, então o nível de água é controlado **pelo tempo** que 
 - porta aberta desliga tudo na hora;
 - a resistência só liga com água que entrou pelo solenoide e com a água ainda fria. Marcar "com água" na página não basta;
 - encher e drenar nunca acontecem juntos;
-- se o Klixon disparar, a máquina para e só volta quando você liberar;
+- o Klixon fica em série com a resistência: se ela superaquecer, ele corta a corrente sozinho, sem depender da placa;
 - só a página da própria placa consegue mandar comandos. Um site qualquer aberto no celular não consegue ligar nada.
 
 **A página tem duas abas:**
@@ -122,7 +122,7 @@ A ordem dos próximos testes está no [`LIGACAO.md`](LIGACAO.md), item 7.
 > ⚠️ **Perigo: 110 V, água e uma resistência de ~1000 W.** Há risco real de choque elétrico e de incêndio.
 > - **Antes de ligar na tomada, leia o [`LIGACAO.md`](LIGACAO.md)**: esquema elétrico, aterramento, proteções físicas e a ordem de testes.
 > - Nunca mexa na fiação nem grave o firmware com a máquina na tomada.
-> - O firmware desliga tudo em caso de porta aberta ou sobretemperatura, mas software pode falhar: as proteções físicas (termostato de segurança, aterramento, DR) são obrigatórias.
+> - O firmware desliga tudo com a porta aberta, mas software pode falhar: as proteções físicas (Klixon em série com a resistência, aterramento, DR) são obrigatórias.
 > - Faça por sua conta e risco.
 
 ## Onde está cada coisa

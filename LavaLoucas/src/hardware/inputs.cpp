@@ -16,8 +16,8 @@ static DebouncedInput thermostat {PIN_TANK_THERMOSTAT, THERMOSTAT_DEBOUNCE_MS, H
 static DebouncedInput klixon     {PIN_KLIXON,          KLIXON_DEBOUNCE_MS,     HIGH, HIGH, 0};
 
 bool doorClosed()    { return door.stable == LOW; }
-bool tankHot()       { return thermostat.stable == HIGH; }  // termostato NF abriu
-bool klixonTripped() { return klixon.stable == LOW; }       // Klixon NA fechou
+bool tankHot()       { return thermostat.stable == LOW; }   // termostato NA fechou
+bool klixonTripped() { return KLIXON_ON_ESP && klixon.stable == HIGH; }  // Klixon NF abriu (só se ligado no D21)
 
 static void setupInput(DebouncedInput& input) {
   pinMode(input.pin, INPUT_PULLUP);

@@ -1,4 +1,4 @@
-// safety.cpp  -  travas de segurança, porta e falha do Klixon.
+// safety.cpp  -  travas de segurança, porta e Klixon.
 
 #include "safety.h"
 #include "../../config.h"
@@ -8,13 +8,12 @@
 #include "cycle.h"
 #include "water.h"
 
-bool   fault = false;
-String faultMsg;
-
 static bool     lastDoorClosed  = false;
 static uint32_t doorClosedSince = 0;
+static bool     lastKlixonTripped = false;
 
 void setupSafety() {
+  lastKlixonTripped = klixonTripped();
   lastDoorClosed = doorClosed();
   doorClosedSince = millis();
 }
@@ -47,10 +46,13 @@ void applySafetyInterlocks() {
 
   // Termostato da cuba aberto = já chegou na temperatura.
   if (relayRequested[RELAY_HEATER] && tankHot())
-    blockRelay(RELAY_HEATER, "cuba quente (termostato aberto)");
+    blockRelay(RELAY_HEATER, "cuba quente (termostato fechado)");
+
+  // Klixon disparou: só a resistência desliga; bombas e o resto do ciclo seguem.
+  if (relayRequested[RELAY_HEATER] && klixonTripped())
+    blockRelay(RELAY_HEATER, "Klixon disparou (resistencia quente demais)");
 
   if (!doorClosed()) blockAllRelays("porta aberta");
-  if (fault)         blockAllRelays("falha");
 }
 
 // ---------- Porta ----------
@@ -74,24 +76,14 @@ bool doorClosedLongEnough() {
   return doorClosed() && millis() - doorClosedSince >= DOOR_RESUME_DELAY_MS;
 }
 
-// ---------- Klixon (sobretemperatura da resistência) ----------
+// ---------- Klixon (resistência quente demais) ----------
+// A trava acima desliga a resistência enquanto ele estiver aberto, e o ciclo deixa a
+// resistência desligada até o fim da etapa (cycle.cpp). Aqui só fica o registro.
 
-void checkOverTemperature() {
-  if (!klixonTripped() || fault) return;
+void handleKlixonChange() {
+  bool tripped = klixonTripped();
+  if (tripped == lastKlixonTripped) return;
 
-  fault = true;
-  faultMsg = "Klixon da resistencia fechou: SOBRETEMPERATURA. Tudo desligado.";
-  addLog("FALHA: " + faultMsg);
-  stopCycle("falha Klixon");
-  forceAllRelaysOff();
-}
-
-void resetFault() {
-  if (klixonTripped()) {
-    addLog("Reset negado: Klixon ainda fechado");
-  } else if (fault) {
-    fault = false;
-    faultMsg = "";
-    addLog("Falha resetada");
-  }
+  lastKlixonTripped = tripped;
+  addLog(tripped ? "AVISO: Klixon disparou: resistencia desligada" : "Klixon voltou ao normal");
 }

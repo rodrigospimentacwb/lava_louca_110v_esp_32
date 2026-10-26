@@ -13,7 +13,7 @@ Histórico (2026-10-17): o projeto nasceu para ESP32 com shield de relés; uma f
 | `secrets.h` | senhas (fora do git); só `src/web/network.cpp` inclui |
 | `src/hardware/inputs` | debounce e significado dos sensores: `doorClosed()`, `tankHot()`, `klixonTripped()` |
 | `src/hardware/relays` | pedidos `turnOn…/turnOff…`, escrita nos pinos, teste manual |
-| `src/control/safety` | travas, porta, falha do Klixon |
+| `src/control/safety` | travas, porta, registro do Klixon (se ligado no `D21`) |
 | `src/control/cycle` | etapas do ciclo (`run…Step()`), iniciar/parar |
 | `src/control/water` | água estimada por tempo (sem bóia ainda) |
 | `src/storage/settings` | `CycleSettings` salvo na flash (`Preferences`, namespace `lava`) |
@@ -57,7 +57,7 @@ Sem `delay` longo em lugar nenhum: tudo é por `millis()` e `dt`.
 | Pino na placa | Uso | Por quê |
 |---|---|---|
 | D32, D33, D25, D26 | resistência, lavagem, drenagem, solenoide | lado a lado na fileira de cima, sem papel no boot; soltos no boot = relé desligado (ativo em LOW) |
-| D18, D19, D21 | porta, termostato, Klixon | fileira de baixo (com GND do lado), aceitam `INPUT_PULLUP`, não afetam o boot |
+| D18, D19 (D21 reservado ao Klixon, hoje em série no 110 V) | porta, termostato | fileira de baixo (com GND do lado), aceitam `INPUT_PULLUP`, não afetam o boot |
 | D22, D23, D27, D13, D4 | livres (bóia, extras) | seguros |
 | D34, D35, VP (36), VN (39) | livres, **só entrada** | sem pull-up interno; servem para analógico |
 | D0 (BOOT), D2, D5, D12, D15 | **evitar** | decidem o modo de boot (D12 em HIGH no boot pode até impedir a placa de ligar) |

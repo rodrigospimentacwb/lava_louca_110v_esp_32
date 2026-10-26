@@ -78,13 +78,6 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
   .btn:disabled { opacity: .45; cursor: not-allowed }
   .btn.big { width: 100%; font-size: 1.1rem; min-height: 56px; border-radius: 14px }
 
-  /* ---------- Falha ---------- */
-  .fault {
-    border-left: 5px solid var(--heat); background: var(--surface); border-radius: var(--radius-s);
-    padding: 12px 14px; margin-bottom: 16px; display: grid; gap: 10px;
-  }
-  .fault strong { color: var(--heat) }
-
   /* ---------- Dial (peça principal) ---------- */
   .dial-wrap { position: relative; width: min(100%, 340px); margin: 0 auto }
   .dial-wrap svg { display: block; width: 100%; height: auto }
@@ -174,12 +167,6 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
   <div class="tabs" role="tablist">
     <button role="tab" id="tab-main" aria-controls="panel-main" aria-selected="true">Principal</button>
     <button role="tab" id="tab-admin" aria-controls="panel-admin" aria-selected="false">Debug e admin</button>
-  </div>
-
-  <div class="fault" id="fault" role="alert" hidden>
-    <p><strong>Sobretemperatura na resistência.</strong> O Klixon disparou e tudo foi desligado.
-       Espere a resistência esfriar e limpe a falha.</p>
-    <button class="btn stop" data-post="/api/reset">Limpar falha</button>
   </div>
 
   <!-- ================= Principal ================= -->
@@ -419,7 +406,7 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
     const note = $('stepNote');
 
     if (!S.active) {
-      $('stepName').textContent = S.fault ? 'Em falha' : 'Pronta';
+      $('stepName').textContent = 'Pronta';
       $('stepTime').textContent = CFG ? 'cerca de ' + minutes(totalS) : '';
       setText(note, '', 'dial-note');
     } else {
@@ -433,11 +420,10 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
 
     $('startBtn').hidden = S.active;
     $('stopBtn').hidden = !S.active;
-    $('startBtn').disabled = !S.door || S.fault;
+    $('startBtn').disabled = !S.door;
 
     let hint = '';
-    if (S.fault) hint = 'Limpe a falha para lavar de novo.';
-    else if (!S.active && !S.door) hint = 'Feche a porta para iniciar.';
+    if (!S.active && !S.door) hint = 'Feche a porta para iniciar.';
     else if (S.active) {
       const end = new Date(Date.now() + leftS * 1000);
       hint = 'Faltam cerca de ' + minutes(leftS) + ', termina por volta das ' +
@@ -448,7 +434,8 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
     setText($('fDoor'), S.door ? 'Fechada' : 'Aberta', S.door ? 'ok' : 'bad');
     setText($('fWater'), S.water ? 'Com água' : 'Vazia', '');
     setText($('fTank'), S.tankHot ? 'Quente' : 'Fria', S.tankHot ? 'warn' : '');
-    setText($('fKlixon'), S.klixon ? 'Disparada' : 'Normal', S.klixon ? 'bad' : 'ok');
+    if (!S.klixonOnEsp) setText($('fKlixon'), 'Klixon em série', '');
+    else setText($('fKlixon'), S.klixon ? 'Quente demais: resistência desligada' : 'Normal', S.klixon ? 'bad' : 'ok');
 
     const short = ['Resistência', 'Lavagem', 'Drenagem', 'Entrada'];
     $('loads').innerHTML = S.relays.map((r, i) =>
@@ -511,7 +498,6 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html>
       S = await (await fetch('/api/status')).json();
       $('conn').className = 'conn';
       $('connText').textContent = 'ligada há ' + mmss(S.uptime);
-      $('fault').hidden = !S.fault;
       renderMain();
       if (adminOpen) renderAdmin();
     } catch (e) {
