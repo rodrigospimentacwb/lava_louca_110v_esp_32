@@ -115,7 +115,8 @@ A ordem dos próximos testes está no [`LIGACAO.md`](LIGACAO.md), item 7.
    arduino-cli upload  -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 --input-dir build
    ```
    Se preferir, use a Arduino IDE: abra `LavaLoucas/LavaLoucas.ino`, escolha a placa **ESP32 Dev Module** e grave. Grave com a máquina fora da tomada.
-3. No celular, entre na rede Wi-Fi **LavaLoucas** e abra **http://192.168.4.1**. Se configurou a rede de casa, use o IP que a placa pegou (aparece no registro da página e na serial) ou **http://lavaloucas.local**, que só funciona para quem está na mesma rede da placa. Dica: reserve um IP fixo para a placa no roteador.
+3. **Depois da primeira gravação, dá para atualizar pela página**, sem abrir a caixa: defina `OTA_PASS` no `secrets.h` (senha própria, mínimo 8 caracteres) e grave uma vez pela USB. Daí em diante, compile, abra a aba **Debug e admin**, em "Atualizar o programa" escolha `build/LavaLoucas.ino.bin`, digite a senha e envie. Só funciona com o ciclo parado; a placa desliga tudo, grava e reinicia. Se o envio cair no meio, ela continua com o programa antigo. O `.bin` tem as senhas dentro: nunca publique.
+4. No celular, entre na rede Wi-Fi **LavaLoucas** e abra **http://192.168.4.1**. Se configurou a rede de casa, use o IP que a placa pegou (aparece no registro da página e na serial) ou **http://lavaloucas.local**, que só funciona para quem está na mesma rede da placa. Dica: reserve um IP fixo para a placa no roteador.
 
 **Se a placa reiniciar sozinha** (a página ora responde, ora trava), o problema costuma ser a alimentação: cabo ou porta USB com mau contato. Veja o item 3 do [`LIGACAO.md`](LIGACAO.md).
 

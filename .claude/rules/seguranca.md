@@ -12,6 +12,7 @@ A máquina tem 110 V, água e uma resistência de 800 a 1200 W. Software pode tr
 | No boot, cada relé é escrito como desligado **antes** do `pinMode(OUTPUT)` | `relays.cpp` (`setupRelays`) |
 | Relés ativos em LOW, em pinos que ficam soltos no boot (D32, D33, D25, D26) = desligados. Nunca usar pinos de boot (0, 2, 5, 12, 15) nem o 14 para relé | `config.h` |
 | Teste manual desliga sozinho em `TEST_MAX_MS` | `relays.cpp` |
+| Atualizar o programa pela página: só com `X-Lava`, `Host` da placa, senha `OTA_PASS` e ciclo parado; relés desligados antes de gravar; sem `OTA_PASS` no `secrets.h`, desligado | `web_server.cpp` (`updateUpload`), `network.cpp` |
 | Não existe secagem com resistência | `cycle.cpp` |
 
 ## O padrão pedido → trava → escrita

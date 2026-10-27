@@ -35,6 +35,7 @@ A aba aberta fica na URL (`#admin`).
 | `POST /api/config/defaults` | voltar aos padrões |
 | `POST /api/log/clear` | limpar registro |
 | `POST /api/restart` | reiniciar a placa (409 com ciclo rodando) |
+| `POST /api/update` | gravar programa novo (`.bin` em multipart + cabeçalho `X-Senha` = `OTA_PASS`); conferência em `updateUpload()`, não no `guarded()`, porque o arquivo chega antes do handler final. 403 sem senha certa ou sem `OTA_PASS`, 409 com ciclo rodando |
 
 Erros respondem `{"error": "…"}`; a página traduz para uma mensagem amigável no aviso (toast).
 
