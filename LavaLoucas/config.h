@@ -44,8 +44,11 @@ const uint32_t TEST_MAX_MS[RELAY_COUNT] = {
 // servem para leitura analógica, mas não têm pull-up interno.
 
 const uint8_t PIN_DOOR            = 18;  // porta fechada = contato fechado = LOW
-const uint8_t PIN_TANK_THERMOSTAT = 19;  // termostato da cuba NF: fechado (LOW) = frio, abre (HIGH) = atingiu a temperatura
-const uint8_t PIN_KLIXON          = 21;  // Klixon da resistência NA: aberto (HIGH) = ok, fecha (LOW) = SOBRETEMPERATURA
+const uint8_t PIN_TANK_THERMOSTAT = 19;  // termostato da cuba NA: aberto (HIGH) = frio, fecha (LOW) = atingiu a temperatura
+const uint8_t PIN_KLIXON          = 21;  // Klixon da resistência NF: fechado (LOW) = ok, abre (HIGH) = resistência quente demais
+// O Klixon fica em série com a resistência, no 110 V (corta sozinho, sem depender do software),
+// e o D21 fica livre. true = Klixon ligado no D21 em vez disso (aí ele só desliga a resistência).
+const bool    KLIXON_ON_ESP       = false;
 
 // Debounce: o sinal precisa ficar estável por este tempo para valer.
 const uint16_t DOOR_DEBOUNCE_MS       = 80;

@@ -11,7 +11,7 @@
     config.h                 pinos e ajustes de hardware
     src/hardware/inputs      sensores (porta, termostato da cuba, Klixon)
     src/hardware/relays      ligar/desligar as cargas e teste manual
-    src/control/safety       travas de segurança, porta e falha do Klixon
+    src/control/safety       travas de segurança, porta e Klixon
     src/control/cycle        etapas do ciclo de lavagem
     src/control/water        água na cuba (estimada por tempo)
     src/storage/settings     configuração do ciclo salva na flash
@@ -58,7 +58,7 @@ void loop() {
   // 1. Ler os sensores e reagir a eventos de segurança
   updateInputs(now);
   handleDoorChange(now);
-  checkOverTemperature();
+  handleKlixonChange();
 
   // 2. Decidir o que ligar: o ciclo OU o teste manual da página
   clearRequests();

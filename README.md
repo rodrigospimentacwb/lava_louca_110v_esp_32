@@ -56,19 +56,19 @@ Impressa em 3D (PETG), com a ESP32, o módulo de relés, o step-down e um fan na
 | Cabo PP 3 × 1,5 mm² | ~1 m | entrada de força (fase, neutro, terra) |
 | Cabo PP 2 × 1,5 mm² | conforme a distância | resistência |
 | Cabo PP 2 × 1,0 mm² | 3 pedaços | bomba de lavagem, bomba de drenagem, solenoide |
-| Cabo manga de 6 vias | conforme a distância | porta, termostato da cuba, Klixon |
+| Cabo manga de 4 vias | conforme a distância | porta e termostato da cuba |
 | Abraçadeira de nylon (até 3,6 mm de largura) | 1 pacote | prender os cabos nas âncoras |
 | Prensa-cabo PG11 / PG9 / PG7 | 2 / 3 / 2 | vedação dos cabos (opcional por enquanto) |
 
 ## Como funciona
 
-A placa liga e desliga 4 cargas e lê 3 sensores:
+A placa liga e desliga 4 cargas e lê 2 sensores:
 
 | Liga e desliga (relés) | Lê (sensores) |
 |---|---|
 | Resistência (esquenta a água) | Porta fechada ou aberta |
 | Bomba de lavagem (joga água nas louças) | Termostato da cuba: a água chegou na temperatura? |
-| Bomba de drenagem (tira a água) | Klixon: a resistência superaqueceu? |
+| Bomba de drenagem (tira a água) | |
 | Solenoide de entrada (deixa a água entrar) | |
 
 Ainda não tem bóia, então o nível de água é controlado **pelo tempo** que o solenoide fica aberto.
@@ -79,7 +79,7 @@ Ainda não tem bóia, então o nível de água é controlado **pelo tempo** que 
 - porta aberta desliga tudo na hora;
 - a resistência só liga com água que entrou pelo solenoide e com a água ainda fria. Marcar "com água" na página não basta;
 - encher e drenar nunca acontecem juntos;
-- se o Klixon disparar, a máquina para e só volta quando você liberar;
+- o Klixon fica em série com a resistência: se ela superaquecer, ele corta a corrente sozinho, sem depender da placa;
 - só a página da própria placa consegue mandar comandos. Um site qualquer aberto no celular não consegue ligar nada.
 
 **A página tem duas abas:**
@@ -115,14 +115,15 @@ A ordem dos próximos testes está no [`LIGACAO.md`](LIGACAO.md), item 7.
    arduino-cli upload  -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 --input-dir build
    ```
    Se preferir, use a Arduino IDE: abra `LavaLoucas/LavaLoucas.ino`, escolha a placa **ESP32 Dev Module** e grave. Grave com a máquina fora da tomada.
-3. No celular, entre na rede Wi-Fi **LavaLoucas** e abra **http://192.168.4.1**. Se configurou a rede de casa, use o IP que a placa pegou (aparece no registro da página e na serial) ou **http://lavaloucas.local**, que só funciona para quem está na mesma rede da placa. Dica: reserve um IP fixo para a placa no roteador.
+3. **Depois da primeira gravação, dá para atualizar pela página**, sem abrir a caixa: defina `OTA_PASS` no `secrets.h` (senha própria, mínimo 8 caracteres) e grave uma vez pela USB. Daí em diante, compile, abra a aba **Debug e admin**, em "Atualizar o programa" escolha `build/LavaLoucas.ino.bin`, digite a senha e envie. Só funciona com o ciclo parado; a placa desliga tudo, grava e reinicia. Se o envio cair no meio, ela continua com o programa antigo. O `.bin` tem as senhas dentro: nunca publique.
+4. No celular, entre na rede Wi-Fi **LavaLoucas** e abra **http://192.168.4.1**. Se configurou a rede de casa, use o IP que a placa pegou (aparece no registro da página e na serial) ou **http://lavaloucas.local**, que só funciona para quem está na mesma rede da placa. Dica: reserve um IP fixo para a placa no roteador.
 
 **Se a placa reiniciar sozinha** (a página ora responde, ora trava), o problema costuma ser a alimentação: cabo ou porta USB com mau contato. Veja o item 3 do [`LIGACAO.md`](LIGACAO.md).
 
 > ⚠️ **Perigo: 110 V, água e uma resistência de ~1000 W.** Há risco real de choque elétrico e de incêndio.
 > - **Antes de ligar na tomada, leia o [`LIGACAO.md`](LIGACAO.md)**: esquema elétrico, aterramento, proteções físicas e a ordem de testes.
 > - Nunca mexa na fiação nem grave o firmware com a máquina na tomada.
-> - O firmware desliga tudo em caso de porta aberta ou sobretemperatura, mas software pode falhar: as proteções físicas (termostato de segurança, aterramento, DR) são obrigatórias.
+> - O firmware desliga tudo com a porta aberta, mas software pode falhar: as proteções físicas (Klixon em série com a resistência, aterramento, DR) são obrigatórias.
 > - Faça por sua conta e risco.
 
 ## Onde está cada coisa

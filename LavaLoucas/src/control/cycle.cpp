@@ -20,12 +20,15 @@ Step     currentStep     = STEP_IDLE;
 uint32_t stepElapsedMs   = 0;
 uint8_t  rinseIndex      = 0;
 bool     washTempReached = false;
-static bool heatTimedOut = false;  // passou do tempo máximo esperando aquecer
+// Klixon disparou ou passou do tempo máximo esperando aquecer: a resistência fica
+// desligada até a próxima etapa. A água nova do enxágue já entra fria.
+static bool heaterStopped = false;
 
 static void goToStep(Step next);
 static void goToNextRinseOrFinish();
 
 bool cycleActive() { return currentStep != STEP_IDLE; }
+bool heaterStoppedForStep() { return heaterStopped; }
 
 // Porta aberta (ou fechada há menos de 2 s): o ciclo para no lugar e o tempo não conta.
 bool cyclePaused() { return cycleActive() && !doorClosedLongEnough(); }
@@ -40,7 +43,7 @@ static void goToStep(Step next) {
   currentStep = next;
   stepElapsedMs = 0;
   washTempReached = false;
-  heatTimedOut = false;
+  heaterStopped = false;
   if (isRinseStep())
     addLog(String("Etapa: ") + STEP_NAME[next] + " " + (rinseIndex + 1) + "/" + settings.nRinses);
   else
@@ -63,6 +66,18 @@ uint32_t stepTargetMs() {
 
 static bool stepTimeIsUp() { return stepElapsedMs >= stepTargetMs(); }
 
+static void stopHeaterForStep(const char* why) {
+  if (heaterStopped) return;
+  heaterStopped = true;
+  addLog(String("AVISO: ") + why + ": resistencia desligada ate a proxima etapa, ciclo segue");
+}
+
+// Liga a resistência se a cuba estiver fria, a não ser que o Klixon tenha disparado nesta etapa.
+static void heatIfCold() {
+  if (klixonTripped()) stopHeaterForStep("Klixon disparou");
+  if (!tankHot() && !heaterStopped) turnOnHeater();
+}
+
 // ---------- Etapas ----------
 
 static void runPreDrainStep() {
@@ -78,25 +93,23 @@ static void runFillStep() {
   }
 }
 
-// Lavagem: bomba sempre ligada; resistência enquanto o termostato da cuba estiver fechado.
+// Lavagem: bomba sempre ligada; resistência enquanto a cuba estiver fria.
 // Termina quando passou o tempo mínimo E a água esquentou. Se não esquentar dentro do
-// "máx. esperando aquecer", desliga a resistência, avisa e segue o ciclo.
+// "máx. esperando aquecer", ou se o Klixon disparar, a resistência desliga até o fim da
+// etapa, um aviso vai para o registro e o ciclo segue.
 static void runWashStep() {
   turnOnWashPump();
-  if (!tankHot() && !heatTimedOut) turnOnHeater();
+  heatIfCold();
 
   if (tankHot() && !washTempReached) {
     washTempReached = true;
-    addLog("Termostato da cuba abriu (temperatura atingida)");
+    addLog("Termostato da cuba fechou (temperatura atingida)");
   }
 
   bool waitedTooLong = stepElapsedMs >= settings.heatMaxMin * 60000UL;
-  if (waitedTooLong && !washTempReached && !heatTimedOut) {
-    heatTimedOut = true;
-    addLog("AVISO: termostato da cuba nao abriu no tempo maximo, seguindo sem temperatura");
-  }
+  if (waitedTooLong && !washTempReached) stopHeaterForStep("termostato da cuba nao fechou no tempo maximo");
 
-  if (stepTimeIsUp() && (washTempReached || waitedTooLong)) goToStep(STEP_DRAIN);
+  if (stepTimeIsUp() && (washTempReached || heaterStopped)) goToStep(STEP_DRAIN);
 }
 
 static void runDrainStep() {
@@ -119,7 +132,7 @@ static void runRinseFillStep() {
 // Enxágue: circula a água; o último pode ser aquecido (configuração "Aquecer último enxágue").
 static void runRinseStep() {
   turnOnWashPump();
-  if (settings.rinseHeat && isLastRinse() && !tankHot()) turnOnHeater();
+  if (settings.rinseHeat && isLastRinse()) heatIfCold();
   if (stepTimeIsUp()) goToStep(STEP_RINSE_DRAIN);
 }
 
@@ -145,7 +158,7 @@ static void goToNextRinseOrFinish() {
 
 // Chamada a cada volta do loop() enquanto o ciclo está ativo.
 void runCycle(uint32_t dt) {
-  if (cyclePaused() || fault) return;  // sem pedidos = tudo desligado
+  if (cyclePaused()) return;  // sem pedidos = tudo desligado
 
   stepElapsedMs += dt;
   switch (currentStep) {
@@ -161,7 +174,6 @@ void runCycle(uint32_t dt) {
 }
 
 void startCycle() {
-  if (fault)        { addLog("Nao iniciou: falha ativa, use Reset"); return; }
   if (!doorClosed()) { addLog("Nao iniciou: porta aberta"); return; }
 
   stopAllTests();

@@ -1,6 +1,6 @@
 # Lava-louças 110 V com ESP32
 
-Firmware Arduino para **ESP32 DevKit V1 (30 pinos, ESP-WROOM-32)** que substitui o timer eletromecânico de uma lava-louças Enxuta antiga, 110 V. A placa aciona um módulo separado de 4 relés 5 V, ativo em LOW (resistência, bomba de lavagem, bomba de drenagem, solenoide de entrada), lê 3 sensores (porta, termostato da cuba, Klixon) e serve uma página web pelo Wi-Fi para operar, testar e configurar.
+Firmware Arduino para **ESP32 DevKit V1 (30 pinos, ESP-WROOM-32)** que substitui o timer eletromecânico de uma lava-louças Enxuta antiga, 110 V. A placa aciona um módulo separado de 4 relés 5 V, ativo em LOW (resistência, bomba de lavagem, bomba de drenagem, solenoide de entrada), lê 2 sensores (porta e termostato da cuba; o Klixon fica em série com a resistência, no 110 V) e serve uma página web pelo Wi-Fi para operar, testar e configurar.
 
 **Isto controla 110 V, água e uma resistência de ~1000 W.** Toda mudança que mexe em relé, sensor ou ciclo precisa respeitar `.claude/rules/seguranca.md`.
 

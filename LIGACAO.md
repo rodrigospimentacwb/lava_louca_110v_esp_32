@@ -11,24 +11,24 @@
 
 | Função | Pino na placa | Ligar em | Observação |
 |---|---|---|---|
-| Relé 1: Resistência | **D32** | `IN1` | liga só com água, porta fechada e termostato da cuba fechado |
+| Relé 1: Resistência | **D32** | `IN1` | liga só com água, porta fechada e cuba fria (termostato aberto) |
 | Relé 2: Bomba de lavagem | **D33** | `IN2` | |
 | Relé 3: Bomba de drenagem | **D25** | `IN3` | nunca junto com o solenoide |
 | Relé 4: Solenoide de entrada | **D26** | `IN4` | nunca junto com a drenagem |
 | Interruptor da porta | **D18** | contato até o GND | fechado (LOW) = porta fechada |
-| Termostato da cuba (NF) | **D19** | contato até o GND | fechado (LOW) = frio; aberto (HIGH) = temperatura atingida |
-| Klixon da resistência (NA) | **D21** | contato até o GND | aberto (HIGH) = normal; fechado (LOW) = **sobretemperatura, desliga tudo** |
+| Termostato da cuba (NA) | **D19** | contato até o GND | aberto (HIGH) = frio; fechado (LOW) = temperatura atingida |
+| Klixon da resistência (NF) | — | **em série com a resistência, no 110 V** (item 4) | não vai na ESP32; o `D21` fica livre |
 
-**Por que esses pinos.** Os relés (`D32`, `D33`, `D25`, `D26`) ficam lado a lado na fileira de cima, e os sensores (`D18`, `D19`, `D21`) na fileira de baixo, com um `GND` do mesmo lado. Nenhum deles tem papel no boot da ESP32. Alguns pinos a evitar:
+**Por que esses pinos.** Os relés (`D32`, `D33`, `D25`, `D26`) ficam lado a lado na fileira de cima, e os sensores (`D18`, `D19`) na fileira de baixo, com um `GND` do mesmo lado. Nenhum deles tem papel no boot da ESP32. Alguns pinos a evitar:
 - `D0` (BOOT), `D2`, `D5`, `D12` e `D15` decidem como a placa liga. O `D12` em HIGH na hora de ligar pode até impedir a placa de iniciar.
 - O `D14` solta pulsos no boot e faria um relé clicar.
 - `D34`, `D35`, `VP` e `VN` só servem de entrada e não têm pull-up interno.
 
-**Pinos livres para o futuro (bóia):** `D22`, `D23`, `D27`, `D13` e `D4`.
+**Pinos livres para o futuro (bóia):** `D22`, `D23`, `D27`, `D13` e `D4`. O `D21` também, enquanto o Klixon ficar em série (dá para ligá-lo ali com `KLIXON_ON_ESP = true` no `config.h`; aí ele só desliga a resistência).
 
 Cada sensor vai como **contato seco**: um terminal no pino, o outro no **GND** da ESP32. Não precisa resistor (o pull-up interno está ativo). Para fios longos, um capacitor de 100 nF entre o pino e o GND ajuda contra ruído.
 
-Fio solto ou mau contato: a porta é lida como **aberta** e a cuba como **quente**, então tudo desliga (falha segura). O Klixon é NA, então fio solto nele **não** é detectado; por isso a proteção física do item 5.4 é importante.
+Fio solto ou mau contato na porta: ela é lida como **aberta** e tudo desliga (falha segura). O termostato da cuba é NA: fio solto nele é lido como **cuba fria** e **não** é detectado. Aí a resistência continua ligando, protegida pelo Klixon em série e pelo "máximo esperando aquecer"; capriche nessa ligação.
 
 ## 3. Alimentação do módulo de relés
 
@@ -69,8 +69,8 @@ O módulo inteiro é alimentado com **5 V**, com o **jumper amarelo no lugar** (
                   COM K1         COM K2         COM K3          COM K4
                   NO  K1         NO  K2         NO  K3          NO  K4
                      │              │              │               │
-              [Termostato        Bomba          Bomba          Solenoide
-               segurança NF]    lavagem        drenagem        entrada
+              [Klixon NF,        Bomba          Bomba          Solenoide
+               em série]        lavagem        drenagem        entrada
                      │              │              │               │
                Resistência          │              │               │
                      │              │              │               │
@@ -81,21 +81,20 @@ O módulo inteiro é alimentado com **5 V**, com o **jumper amarelo no lugar** (
    ESP32 (baixa tensão, isolada da rede):
      D18 ──── interruptor da porta ──── GND
      D19 ──── termostato da cuba ────── GND
-     D21 ──── Klixon da resistência ─── GND
 ```
 
 Cada relé tem 3 bornes: o do meio é o **COM**, e o **NO** (normalmente aberto) fica de um lado. Use sempre COM + NO: assim, com a placa desligada ou reiniciando, nada liga.
 
 ## 5. Segurança (leia antes de ligar na tomada)
 
-1. **Sensores precisam sair do circuito de 110 V.** No timer original, porta, termostato e Klixon estavam ligados na rede. Desconecte **os dois fios** de cada um da fiação antiga e ligue só à ESP32. Se um terminal desses ainda encostar em fase, você queima a placa e coloca 110 V numa placa que você toca.
+1. **Sensores precisam sair do circuito de 110 V.** No timer original, porta e termostato da cuba estavam ligados na rede. Desconecte **os dois fios** de cada um da fiação antiga e ligue só à ESP32. (O Klixon é o contrário: fica no 110 V, em série com a resistência, e não encosta na ESP32.) Se um terminal desses ainda encostar em fase, você queima a placa e coloca 110 V numa placa que você toca.
 2. **Resistência no relé do módulo.** Esses relés são de 10 A (às vezes menos na prática, com trilhas finas). Resistência de lava-louças costuma ter 800 a 1200 W, ou seja 7 a 11 A em 110 V, no limite ou acima. Para o teste: meça a corrente com alicate amperímetro, deixe ligado pouco tempo e verifique se o relé ou as trilhas esquentam. Se esquentar, passe para o SSR (com dissipador) ou use o relé do módulo para acionar um contator.
 3. **Aterramento.** A máquina tem água e metal: a carcaça precisa estar no terra da tomada. Ligue a máquina num circuito com **DR** (disjuntor diferencial residual) se tiver.
-4. **Intertravamento físico, não só software.** O firmware desliga tudo com a porta aberta ou com o Klixon fechado, mas software pode travar. Recomendo:
-   - Um **termostato de segurança NF** (ou fusível térmico) em série com a resistência, como no esquema. Muitas máquinas já têm um no próprio corpo da resistência.
+4. **Intertravamento físico, não só software.** O firmware desliga tudo com a porta aberta, mas software pode travar. Por isso:
+   - O **Klixon NF** fica em série com a resistência, como no esquema: relé `NO` → Klixon → resistência → neutro. Se a resistência superaquecer, ele abre e corta a corrente sozinho, mesmo com a placa travada, e volta a fechar quando esfria. Use terminal crimpado (não solda: o corpo da resistência esquenta) e fio com isolação para calor. Confira na peça se ela aguenta a corrente da resistência (ex.: 16 A).
    - Mais adiante, a porta cortando a fase dos relés. Como o interruptor dela vai para a ESP32 (item 1), seria preciso um segundo microswitch na porta, ou um interruptor de 2 polos.
 5. **Ruído elétrico.** Bombas e solenoide são indutivos e podem reiniciar a placa quando desligam. Se acontecer: coloque um snubber RC (100 Ω + 100 nF/275 V X2) ou um varistor 150 V em paralelo com cada carga, use uma fonte 5 V de boa qualidade e mantenha os fios de sensor longe dos de 110 V.
-6. **Grave o firmware com a máquina fora da tomada.** Durante a gravação e o reinício, os pinos ficam soltos por alguns instantes; com o módulo certo nada liga, mas não vale arriscar com 110 V.
+6. **Grave o firmware com a máquina fora da tomada**, pela USB ou pela página. Pela página, deixe ligada só a fonte de 12 V da placa: o Wi-Fi funciona e a máquina fica sem 110 V. Durante a gravação e o reinício, os pinos ficam soltos por alguns instantes; com o módulo certo nada liga, mas não vale arriscar com 110 V. A página também só aceita a gravação com o ciclo parado e desliga todos os relés antes.
 7. **Nunca mexa na fiação com a máquina na tomada.** Os bornes dos relés ficam expostos; feche as placas numa caixa plástica. Este projeto tem uma caixa impressa em 3D com divisória entre o 110 V e a baixa tensão: [`caixa/README.md`](caixa/README.md).
 
 ## 6. Como os dois sensores de temperatura trabalham juntos
@@ -103,23 +102,24 @@ Cada relé tem 3 bornes: o do meio é o **COM**, e o **NO** (normalmente aberto)
 | | Termostato da cuba | Klixon da resistência |
 |---|---|---|
 | Onde fica | no fundo da cuba, em contato com a água | preso na própria resistência |
-| Tipo | NF: fechado frio, **abre** quando a água chega na temperatura | NA: aberto normal, **fecha** quando a resistência superaquece |
+| Tipo | NA: aberto frio, **fecha** quando a água chega na temperatura | NF: fechado normal, **abre** quando a resistência superaquece |
+| Onde liga | `D19` da ESP32 | em série com a resistência, no 110 V |
 | Papel | o "termômetro": liga e desliga a resistência para **manter a água quente** | a proteção: só dispara se algo deu errado (resistência sem água, bomba parada) |
-| O que o firmware faz | durante a lavagem, liga a resistência sempre que ele fecha (água esfriou) e desliga quando ele abre | desliga **tudo**, cancela o ciclo e espera você limpar a falha |
+| O que acontece | durante a lavagem, o firmware liga a resistência sempre que ele abre (água esfriou) e desliga quando ele fecha | ele mesmo corta a resistência; as bombas e o ciclo seguem normalmente, e a água nova do enxágue esfria tudo |
 
-Na lavagem, a água esfria ao bater nas louças, o termostato fecha de novo e a resistência volta a ligar, quantas vezes for preciso. Se o termostato **nunca** abrir dentro do "máximo esperando aquecer", alguma coisa está errada (termostato ou resistência com defeito). Nesse caso a resistência desliga até o fim da lavagem, o registro mostra um aviso e o ciclo segue.
+Na lavagem, a água esfria ao bater nas louças, o termostato abre de novo e a resistência volta a ligar, quantas vezes for preciso. Se o termostato **nunca** fechar dentro do "máximo esperando aquecer", alguma coisa está errada (termostato ou resistência com defeito). Nesse caso a resistência desliga até o fim da lavagem, o registro mostra um aviso e o ciclo segue.
 
 ## 7. Como usar
 
 1. Copie `LavaLoucas/secrets.example.h` para `LavaLoucas/secrets.h` e defina a senha do AP (`AP_PASS`, mínimo 8 caracteres). Se quiser que a placa entre na sua rede, preencha também `WIFI_SSID` e `WIFI_PASS`.
 2. Grave (veja "Como gravar" no `README.md`). No celular, conecte na rede **LavaLoucas** (com a senha que você pôs em `AP_PASS`) e abra **http://192.168.4.1**. Se configurou sua rede, use **http://lavaloucas.local** ou o IP que aparece no Monitor Serial (115200).
 3. A página tem duas abas:
-   - **Principal**: o dial do ciclo (etapa atual, tempo e quanto falta), Iniciar/Parar, porta, água, temperatura e Klixon, e quais cargas estão ligadas.
+   - **Principal**: o dial do ciclo (etapa atual, tempo e quanto falta), Iniciar/Parar, porta, água e temperatura, e quais cargas estão ligadas.
    - **Debug e admin**: **teste de componentes** (um botão por relé; cada um desliga sozinho depois de um tempo máximo: 10 min resistência/lavagem, 3 min drenagem/solenoide; se algo estiver bloqueado, aparece o motivo), marcar água, **configuração do ciclo** (fica salva na placa), leitura crua dos sensores, relés, informações do sistema, **registro** dos últimos eventos e reiniciar a placa.
 
 ### Ordem de testes sugerida
 
-1. **Só a placa na USB**, sem o módulo de relés: confira na aba Debug e admin se porta, termostato e Klixon mudam de HIGH para LOW ao fechar cada contato.
+1. **Só a placa na USB**, sem o módulo de relés: confira na aba Debug e admin se a porta e o termostato mudam de HIGH para LOW ao fechar cada contato.
 2. **Placa + módulo de relés, sem 110 V**: confira se os relés ficam desligados ao ligar a placa (se clicarem todos, troque `RELAY_ACTIVE_LEVEL`) e se cada botão de teste liga o relé certo.
 3. Sensores de verdade, ainda sem 110 V: abra e feche a porta, aqueça o termostato da cuba com um secador, e confira se a página mostra a mudança.
 4. Com 110 V e máquina vazia: teste a drenagem e a bomba de lavagem por alguns segundos.
@@ -131,14 +131,14 @@ Na lavagem, a água esfria ao bater nas louças, o termostato fecha de novo e a 
 
 1. Drenagem inicial (opcional)
 2. Enchimento por tempo
-3. Lavagem: bomba ligada; resistência ligada sempre que o termostato da cuba estiver fechado (água fria). A etapa termina quando passou o tempo mínimo de lavagem **e** o termostato abriu. Se ele não abrir dentro do "máximo esperando aquecer", a resistência desliga até o fim da lavagem, aparece um aviso no registro e o ciclo segue.
+3. Lavagem: bomba ligada; resistência ligada sempre que o termostato da cuba estiver aberto (água fria). A etapa termina quando passou o tempo mínimo de lavagem **e** o termostato fechou (água quente). Se ele não fechar dentro do "máximo esperando aquecer", a resistência desliga até o fim da lavagem, aparece um aviso no registro e o ciclo segue.
 4. Drenagem
 5. Enxágues (enche, circula, drena), quantos estiverem configurados; o último pode ser aquecido
 6. Fim
 
 **Proteções:**
 - Porta aberta: tudo desliga e o ciclo **pausa**. Retoma 2 s depois que fechar.
-- Klixon fechado: tudo desliga, o ciclo é cancelado e fica em falha até você apertar **Limpar falha** (só aceita com o Klixon aberto de novo).
+- Resistência quente demais: o Klixon em série corta só a resistência, sem depender da placa; o ciclo segue. (Com o Klixon no `D21`, o firmware faz o mesmo: desliga a resistência até a próxima etapa e anota no registro.)
 - Resistência só liga com água que entrou pelo solenoide ("Marcar com água" na página não basta), e no ciclo só junto com a bomba de lavagem.
 - Solenoide e drenagem nunca ligam juntos.
 
